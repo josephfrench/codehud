@@ -1,6 +1,6 @@
 <script lang="ts">
   /** Specifics panel: slides in from the right for the selected node. Data model, signature, config, code, connections. */
-  import { fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { hud } from '../lib/state.svelte.ts';
   import { api } from '../lib/api.ts';
   import { md } from '../lib/md.ts';
@@ -27,10 +27,20 @@
     catch { code = { error: hud.map?.root ? `Could not read ${path} under ${hud.map.root}` : 'This map has no root path, so files cannot be opened.' }; }
   }
   function go(id: string) { hud.highlighted = new Set([id]); hud.selected = null; hud.roam(); }
+
+  /** Grow out of the element that was clicked, into the panel's resting place. */
+  function blow(el: HTMLElement, { from }: { from: { x: number; y: number } | null }) {
+    const r = el.getBoundingClientRect();
+    const ox = from ? from.x - r.left : r.width / 2, oy = from ? from.y - r.top : r.height / 2;
+    return {
+      duration: 320, easing: cubicOut,
+      css: (t: number) => `transform-origin: ${ox}px ${oy}px; transform: scale(${0.02 + 0.98 * t}); opacity: ${Math.min(1, t * 1.6)}; border-radius: ${(1 - t) * 60}px`,
+    };
+  }
 </script>
 
 {#if node}
-  <aside class="panel" transition:fly={{ x: 80, duration: 240 }} style="--c: {color}">
+  <aside class="panel" transition:blow={{ from: hud.blowoutFrom }} style="--c: {color}">
     <header>
       <Sprite kind={node.kind} size={64} {color} state="active" />
       <div class="title">

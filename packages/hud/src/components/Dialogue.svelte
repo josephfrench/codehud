@@ -2,6 +2,7 @@
   /** RPG-style dialogue box: the agent as a character at the bottom of the scene. */
   import { hud } from '../lib/state.svelte.ts';
   import { md, timeAgo } from '../lib/md.ts';
+  import { fly } from 'svelte/transition';
 
   const q = $derived(hud.activeQuestion);
   const session = $derived(hud.sessions.filter((s) => hud.now - new Date(s.lastSeen).getTime() < 10 * 60_000).at(-1));
@@ -25,7 +26,7 @@
 </script>
 
 {#if more && q?.moreContext}
-  <div class="more md">{@html md(q.moreContext)}</div>
+  <div class="more md" transition:fly={{ x: -40, duration: 220 }}><button class="ghost closemore" onclick={() => (more = false)}>✕</button>{@html md(q.moreContext)}</div>
 {/if}
 
 <section class="dialogue" class:pending={q?.status === 'pending'} class:collapsed={!hud.questionOpen}>
@@ -103,8 +104,9 @@
   .reply { display: flex; gap: 8px; align-items: center; }
   .reply input { flex: 1; }
   .toggle { align-self: start; padding: 2px 6px; }
-  .more { position: absolute; left: 50%; bottom: 190px; transform: translateX(-50%); width: min(760px, calc(100% - 60px)); max-height: 42vh; overflow: auto; padding: 14px 18px; z-index: 19; font-size: 12.5px;
+  .more { position: absolute; left: 16px; top: 56px; bottom: 230px; width: min(420px, 38vw); overflow: auto; padding: 14px 18px; z-index: 19; font-size: 12.5px;
     background: color-mix(in srgb, var(--bg-2) 92%, transparent); border: 1px solid var(--line-2); border-radius: 14px; backdrop-filter: blur(12px); }
+  .closemore { float: right; padding: 0 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
   @keyframes talk { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.8); } }

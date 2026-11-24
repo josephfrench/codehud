@@ -6,6 +6,7 @@
   import Overlays from '../components/Overlays.svelte';
 
   let dialogue: Dialogue | undefined = $state();
+  let scene: Scene | undefined = $state();
   onMount(() => { hud.connect(); });
 
   function typing(e: KeyboardEvent) {
@@ -15,13 +16,13 @@
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') { if (typing(e)) (e.target as HTMLElement).blur(); else if (hud.selected) hud.selected = null; return; }
     if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (/^[1-9]$/.test(e.key)) { dialogue?.pick(Number(e.key) - 1); e.preventDefault(); }
-    else if (e.key === 'q') hud.questionOpen = !hud.questionOpen;
-    else if (e.key === 'f') hud.follow();
-    else if (e.key === 'm') location.assign('/');
+    if (/^[1-9]$/.test(e.key)) { dialogue?.pick(Number(e.key) - 1); e.preventDefault(); return; }
+    if (e.key === 'c') { hud.questionOpen = !hud.questionOpen; return; }
+    if (e.key === 'm') { location.assign('/'); return; }
+    if (scene?.steer(e.key, e.shiftKey)) e.preventDefault();
   }
 </script>
 
 <svelte:window onkeydown={onKey} />
-<Scene bind:dialogue />
+<Scene bind:this={scene} bind:dialogue />
 <Overlays />
