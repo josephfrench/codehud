@@ -28,7 +28,11 @@ class HudState {
   showHelp = $state(false);
   showActivity = $state(false);
   /** 'focus' shows only the relevant slice; 'map' is the whole layer x lane grid */
-  view = $state<'focus' | 'map'>('focus');
+  view = $state<'focus' | 'map' | 'docs'>('focus');
+  /** question drawer expanded (focus view) */
+  questionOpen = $state(true);
+  /** screen point the specifics modal grows out of */
+  blowoutFrom = $state.raw<{ x: number; y: number } | null>(null);
   theme = $state<'dark' | 'light'>((() => { try { return (localStorage.getItem('codehud-theme') as 'dark' | 'light') || 'dark'; } catch { return 'dark'; } })());
   toasts = $state<Toast[]>([]);
   /** bump to ask the canvas to fit these ids (null = whole level) */
@@ -138,6 +142,7 @@ class HudState {
       }
       case 'question': {
         this.questions = [...this.questions.filter((q) => q.id !== ev.question.id), ev.question];
+        this.questionOpen = true;
         if (this.mode === 'follow' || !this.activeQuestionId) {
           this.activeQuestionId = ev.question.id;
           this.goTo(ev.question.resolvedNodes);
@@ -237,6 +242,7 @@ class HudState {
     return true;
   }
   select(id: string | null) { this.selected = id; }
+  openBlowout(id: string, from: { x: number; y: number } | null) { this.blowoutFrom = from; this.selected = id; }
   roam() { if (this.mode !== 'roam') this.mode = 'roam'; }
   follow() {
     this.mode = 'follow';

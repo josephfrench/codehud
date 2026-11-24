@@ -49,7 +49,11 @@
     <button class="mode" class:follow={hud.mode === 'follow'} onclick={() => hud.toggleMode()} title="Toggle follow / free roam (f)">
       {hud.mode === 'follow' ? '● following agent' : '○ free roam'}
     </button>
-    <button class="ghost" class:on={hud.view === 'map'} onclick={() => (hud.view = hud.view === 'map' ? 'focus' : 'map')} title="Toggle focus / whole map (m)">{hud.view === 'map' ? 'focus' : 'map'}</button>
+    <span class="views">
+      <button class="ghost" class:on={hud.view === 'focus'} onclick={() => (hud.view = 'focus')} title="Focus graph">focus</button>
+      <button class="ghost" class:on={hud.view === 'map'} onclick={() => (hud.view = 'map')} title="Whole map (m)">map</button>
+      <button class="ghost" class:on={hud.view === 'docs'} onclick={() => (hud.view = 'docs')} title="Files and docs (d)">docs</button>
+    </span>
     <button class="ghost" class:on={hud.showActivity} onclick={() => (hud.showActivity = !hud.showActivity)} title="Toggle activity (a)">log</button>
     <button class="ghost" onclick={() => hud.toggleTheme()} title="Toggle theme (t)">{hud.theme === 'dark' ? '☾' : '☀'}</button>
     <button class="ghost" onclick={() => (hud.showHelp = !hud.showHelp)} title="Keyboard help (?)">?</button>
@@ -78,6 +82,8 @@
   .mode { font-size: 12px; }
   .mode.follow { color: var(--agent); border-color: color-mix(in srgb, var(--agent) 50%, var(--line-2)); }
   .ghost.on { color: var(--fg); background: var(--bg-3); }
+  .views { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; }
+  .views .ghost { padding: 3px 9px; }
   .conn { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-left: 4px; }
   .conn.ok { background: var(--ok); }
 </style>

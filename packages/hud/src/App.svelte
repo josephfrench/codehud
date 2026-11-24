@@ -9,6 +9,9 @@
   import Activity from './components/Activity.svelte';
   import Overlays from './components/Overlays.svelte';
   import FocusView from './components/FocusView.svelte';
+  import Blowout from './components/Blowout.svelte';
+  import DocsView from './components/DocsView.svelte';
+  import Minimap from './components/Minimap.svelte';
 
   let topbar: ReturnType<typeof TopBar>;
   let qpanel: ReturnType<typeof QuestionPanel> | undefined = $state();
@@ -41,6 +44,8 @@
       case 'a': hud.showActivity = !hud.showActivity; break;
       case 't': hud.toggleTheme(); break;
       case 'm': hud.view = hud.view === 'map' ? 'focus' : 'map'; break;
+      case 'd': hud.view = hud.view === 'docs' ? 'focus' : 'docs'; break;
+      case 'q': hud.questionOpen = !hud.questionOpen; break;
       case '?': hud.showHelp = !hud.showHelp; break;
       case '/': e.preventDefault(); topbar.focusSearch(); break;
       default:
@@ -60,8 +65,24 @@
       {#if hud.view === 'map'}
         <Hud />
         <Breadcrumbs />
+      {:else if hud.view === 'docs'}
+        <DocsView />
       {:else}
-        <FocusView bind:qpanel />
+        <FocusView />
+        <Minimap />
+        <Blowout />
+        {#if hud.activeQuestion}
+          <div class="drawer" class:open={hud.questionOpen}>
+            {#if hud.questionOpen}
+              <div class="drawer-body"><QuestionPanel bind:this={qpanel} compact /></div>
+              <button class="tab" onclick={() => (hud.questionOpen = false)} title="Collapse (q)">‹</button>
+            {:else}
+              <button class="tab closed" onclick={() => (hud.questionOpen = true)} title="Expand (q)">
+                <span class="dot"></span><span class="vt">{hud.pending.length ? `${hud.pending.length} question${hud.pending.length > 1 ? 's' : ''}` : 'answered'}</span>
+              </button>
+            {/if}
+          </div>
+        {/if}
       {/if}
       <Overlays />
     </section>
@@ -92,6 +113,13 @@
   .side { border-left: 1px solid var(--line); background: var(--bg); padding: 12px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
   footer { border-top: 1px solid var(--line); background: var(--bg-2); min-height: 0; }
   .idle { color: var(--fg-2); font-size: 12.5px; padding: 4px 2px; }
+  .drawer { position: absolute; top: 48px; left: 0; bottom: 16px; display: flex; align-items: flex-start; z-index: 5; pointer-events: none; }
+  .drawer > * { pointer-events: auto; }
+  .drawer-body { width: min(420px, 40vw); max-height: 100%; overflow: auto; padding: 0 0 0 12px; }
+  .tab { align-self: flex-start; margin-top: 10px; padding: 8px 6px; border-radius: 0 8px 8px 0; border-left: none; background: var(--bg-2); color: var(--fg-2); }
+  .tab.closed { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-color: var(--accent); color: var(--accent); }
+  .tab .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s infinite; }
+  .tab .vt { writing-mode: vertical-rl; font: 600 11px var(--mono); letter-spacing: .08em; }
   .muted { color: var(--fg-3); }
   @media (max-width: 1100px) { .map main { grid-template-columns: 1fr 320px; } }
 </style>

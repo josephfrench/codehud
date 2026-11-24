@@ -22,5 +22,7 @@ export const api = {
     req<{ path: string; from: number; to: number; total: number; lines: string[] }>(
       'GET', `/api/file?path=${encodeURIComponent(path)}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`),
   loadMap: (path: string) => req('POST', '/api/map/load', { path }),
+  tree: (path = '') => req<{ path: string; entries: { name: string; dir: boolean; size: number }[] }>('GET', `/api/tree?path=${encodeURIComponent(path)}`),
+  fileAll: (path: string) => req<{ path: string; from: number; to: number; total: number; lines: string[] }>('GET', `/api/file?path=${encodeURIComponent(path)}&all=1`),
   focus: (body: { nodes?: string[]; note?: string }) => req('POST', '/api/focus', body),
 };

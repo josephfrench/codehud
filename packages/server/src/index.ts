@@ -265,6 +265,7 @@ async function handleApi(req: Req, res: Res, url: URL) {
   }
 
   if (p === '/api/file' && method === 'GET') return serveSnippet(res, url);
+  if (p === '/api/tree' && method === 'GET') return serveTree(res, url);
 
   if (p === '/api/focus' && method === 'POST') {
     const body = (await readJson(req)) as FocusRequest;
@@ -398,6 +399,25 @@ function sse(req: Req, res: Res) {
 }
 
 /** Read a slice of a file under the map root for "show me more context". */
+const TREE_IGNORE = new Set(['node_modules', '.git', 'dist', 'build', '.next', '.svelte-kit', '.astro', '.turbo', '.cache', 'coverage', '.wrangler', '.vite', '.codehud']);
+/** One level of the directory tree under the map root, for the docs tab. */
+function serveTree(res: Res, url: URL) {
+  const root = state.map?.root;
+  if (!root) throw new HttpError(400, 'map has no root');
+  const rootAbs = path.resolve(root);
+  if (!fs.existsSync(rootAbs)) throw new HttpError(404, `map root not found on this machine: ${root}`);
+  const rel = (url.searchParams.get('path') ?? '').replace(/^[/\\]+/, '');
+  const abs = path.resolve(rootAbs, rel);
+  if (!abs.startsWith(rootAbs)) throw new HttpError(403, 'outside map root');
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) throw new HttpError(404, 'not a directory');
+  const entries = fs.readdirSync(abs, { withFileTypes: true })
+    .filter((d) => !TREE_IGNORE.has(d.name) && !d.isSymbolicLink())
+    .map((d) => ({ name: d.name, dir: d.isDirectory(), size: d.isDirectory() ? 0 : (() => { try { return fs.statSync(path.join(abs, d.name)).size; } catch { return 0; } })() }))
+    .sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name))
+    .slice(0, 500);
+  return json(res, 200, { path: rel.replace(/\\/g, '/'), entries });
+}
+
 function serveSnippet(res: Res, url: URL) {
   const root = state.map?.root;
   const rel = url.searchParams.get('path');
@@ -407,7 +427,8 @@ function serveSnippet(res: Res, url: URL) {
   if (!abs.startsWith(rootAbs + path.sep) && abs !== rootAbs) throw new HttpError(403, 'outside map root');
   if (!fs.existsSync(abs) || fs.statSync(abs).isDirectory()) throw new HttpError(404, 'file not found');
   const from = Math.max(1, Number(url.searchParams.get('from') ?? 1));
-  const to = Math.min(from + 400, Number(url.searchParams.get('to') ?? from + 120));
+  const whole = url.searchParams.get('all') === '1';
+  const to = whole ? from + 4000 : Math.min(from + 400, Number(url.searchParams.get('to') ?? from + 120));
   const lines = fs.readFileSync(abs, 'utf8').split(/\r?\n/);
   return json(res, 200, { path: rel, from, to: Math.min(to, lines.length), total: lines.length, lines: lines.slice(from - 1, to) });
 }

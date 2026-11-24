@@ -3,160 +3,1566 @@
   "name": "Acme Portal",
   "description": "Sample system map of a client-portal web app: Astro + Svelte on Cloudflare Workers, Better Auth magic links, Drizzle on D1, Stripe billing, e-signature. Hand-written to exercise the HUD.",
   "root": "C:/example/acme-portal",
-  "generator": { "name": "hand-written", "version": "0" },
+  "generator": {
+    "name": "hand-written",
+    "version": "0"
+  },
   "layers": [
-    { "id": "client", "label": "Client", "description": "Pages and components rendered in the browser" },
-    { "id": "edge", "label": "Edge", "description": "Middleware that runs before routes" },
-    { "id": "api", "label": "API", "description": "HTTP endpoints" },
-    { "id": "domain", "label": "Domain", "description": "Business logic and jobs" },
-    { "id": "persistence", "label": "Persistence", "description": "D1, KV, R2" },
-    { "id": "external", "label": "External", "description": "Third-party services" }
+    {
+      "id": "client",
+      "label": "Client",
+      "description": "Pages and components rendered in the browser"
+    },
+    {
+      "id": "edge",
+      "label": "Edge",
+      "description": "Middleware that runs before routes"
+    },
+    {
+      "id": "api",
+      "label": "API",
+      "description": "HTTP endpoints"
+    },
+    {
+      "id": "domain",
+      "label": "Domain",
+      "description": "Business logic and jobs"
+    },
+    {
+      "id": "persistence",
+      "label": "Persistence",
+      "description": "D1, KV, R2"
+    },
+    {
+      "id": "external",
+      "label": "External",
+      "description": "Third-party services"
+    }
   ],
   "lanes": [
-    { "id": "auth", "label": "Auth", "description": "Sign-in, sessions, roles" },
-    { "id": "projects", "label": "Projects", "description": "Client projects and timelines" },
-    { "id": "billing", "label": "Billing", "description": "Checkout, subscriptions, invoices" },
-    { "id": "documents", "label": "Documents", "description": "Contracts and e-signature" }
+    {
+      "id": "auth",
+      "label": "Auth",
+      "description": "Sign-in, sessions, roles"
+    },
+    {
+      "id": "projects",
+      "label": "Projects",
+      "description": "Client projects and timelines"
+    },
+    {
+      "id": "billing",
+      "label": "Billing",
+      "description": "Checkout, subscriptions, invoices"
+    },
+    {
+      "id": "documents",
+      "label": "Documents",
+      "description": "Contracts and e-signature"
+    }
   ],
   "nodes": [
-    { "id": "page:login", "label": "Login", "kind": "page", "layer": "client", "lane": "auth", "summary": "/login — magic-link sign-in", "files": [{ "path": "src/pages/login.astro" }], "meta": { "path": "/login" } },
-    { "id": "component:magic-link-form", "label": "MagicLinkForm", "kind": "component", "layer": "client", "lane": "auth", "parent": "page:login", "summary": "Email field + send button", "files": [{ "path": "src/components/auth/MagicLinkForm.svelte" }] },
-    { "id": "component:check-inbox", "label": "CheckInbox", "kind": "component", "layer": "client", "lane": "auth", "parent": "page:login", "summary": "Post-send confirmation state", "files": [{ "path": "src/components/auth/CheckInbox.svelte" }] },
-
-    { "id": "ui:projects", "label": "Projects UI", "kind": "page", "layer": "client", "lane": "projects", "summary": "/projects, /projects/:id", "files": [{ "path": "src/pages/projects/" }] },
-    { "id": "page:projects-list", "label": "Projects list", "kind": "page", "layer": "client", "lane": "projects", "parent": "ui:projects", "summary": "/projects", "files": [{ "path": "src/pages/projects/index.astro" }], "meta": { "path": "/projects" } },
-    { "id": "page:project-detail", "label": "Project detail", "kind": "page", "layer": "client", "lane": "projects", "parent": "ui:projects", "summary": "/projects/:id", "files": [{ "path": "src/pages/projects/[id].astro" }], "meta": { "path": "/projects/:id" } },
-    { "id": "component:project-card", "label": "ProjectCard", "kind": "component", "layer": "client", "lane": "projects", "parent": "ui:projects", "files": [{ "path": "src/components/projects/ProjectCard.svelte" }] },
-    { "id": "component:timeline", "label": "Timeline", "kind": "component", "layer": "client", "lane": "projects", "parent": "ui:projects", "summary": "Milestones + status chips", "files": [{ "path": "src/components/projects/Timeline.svelte" }] },
-
-    { "id": "ui:billing", "label": "Billing UI", "kind": "page", "layer": "client", "lane": "billing", "summary": "/checkout, /billing", "files": [{ "path": "src/pages/billing/" }, { "path": "src/pages/checkout.astro" }] },
-    { "id": "page:checkout", "label": "Checkout", "kind": "page", "layer": "client", "lane": "billing", "parent": "ui:billing", "summary": "/checkout — pick plan, go to Stripe", "files": [{ "path": "src/pages/checkout.astro" }], "meta": { "path": "/checkout" } },
-    { "id": "page:invoices", "label": "Invoices", "kind": "page", "layer": "client", "lane": "billing", "parent": "ui:billing", "summary": "/billing — history + receipts", "files": [{ "path": "src/pages/billing/index.astro" }], "meta": { "path": "/billing" } },
-    { "id": "component:plan-picker", "label": "PlanPicker", "kind": "component", "layer": "client", "lane": "billing", "parent": "ui:billing", "files": [{ "path": "src/components/billing/PlanPicker.svelte" }] },
-
-    { "id": "ui:documents", "label": "Documents UI", "kind": "page", "layer": "client", "lane": "documents", "summary": "/documents, /documents/:id/sign", "files": [{ "path": "src/pages/documents/" }] },
-    { "id": "page:documents-list", "label": "Documents list", "kind": "page", "layer": "client", "lane": "documents", "parent": "ui:documents", "summary": "/documents", "files": [{ "path": "src/pages/documents/index.astro" }] },
-    { "id": "component:doc-viewer", "label": "DocViewer", "kind": "component", "layer": "client", "lane": "documents", "parent": "ui:documents", "summary": "PDF render from R2 signed URL", "files": [{ "path": "src/components/documents/DocViewer.svelte" }] },
-    { "id": "component:signature-pad", "label": "SignaturePad", "kind": "component", "layer": "client", "lane": "documents", "parent": "ui:documents", "files": [{ "path": "src/components/documents/SignaturePad.svelte" }] },
-
-    { "id": "ui:shell", "label": "App shell", "kind": "component", "layer": "client", "summary": "Layout, nav, toasts", "files": [{ "path": "src/layouts/" }, { "path": "src/components/shell/" }] },
-    { "id": "component:nav", "label": "Nav", "kind": "component", "layer": "client", "parent": "ui:shell", "files": [{ "path": "src/components/shell/Nav.svelte" }] },
-    { "id": "component:toasts", "label": "Toasts", "kind": "component", "layer": "client", "parent": "ui:shell", "files": [{ "path": "src/components/shell/Toasts.svelte" }] },
-
-    { "id": "middleware:auth", "label": "Session guard", "kind": "middleware", "layer": "edge", "lane": "auth", "summary": "Resolves session cookie; redirects anon users", "files": [{ "path": "src/middleware.ts" }] },
-    { "id": "function:get-session", "label": "getSession()", "kind": "function", "layer": "edge", "lane": "auth", "parent": "middleware:auth", "files": [{ "path": "src/middleware.ts", "lines": [12, 40] }] },
-    { "id": "function:require-role", "label": "requireRole()", "kind": "function", "layer": "edge", "lane": "auth", "parent": "middleware:auth", "summary": "admin | client", "files": [{ "path": "src/middleware.ts", "lines": [42, 61] }] },
-    { "id": "middleware:rate-limit", "label": "Rate limit", "kind": "middleware", "layer": "edge", "summary": "KV token bucket on /api/*", "files": [{ "path": "src/lib/server/rate-limit.ts" }] },
-
-    { "id": "route:auth", "label": "Auth handler", "kind": "route", "layer": "api", "lane": "auth", "summary": "ALL /api/auth/* (Better Auth)", "files": [{ "path": "src/pages/api/auth/[...all].ts" }], "meta": { "method": "ALL", "path": "/api/auth/*" } },
-    { "id": "route:auth-send", "label": "Send magic link", "kind": "route", "layer": "api", "lane": "auth", "parent": "route:auth", "summary": "POST /api/auth/magic-link", "meta": { "method": "POST", "path": "/api/auth/magic-link" } },
-    { "id": "route:auth-verify", "label": "Verify link", "kind": "route", "layer": "api", "lane": "auth", "parent": "route:auth", "summary": "GET /api/auth/magic-link/verify", "meta": { "method": "GET", "path": "/api/auth/magic-link/verify" } },
-
-    { "id": "routes:projects", "label": "Projects API", "kind": "route", "layer": "api", "lane": "projects", "summary": "/api/projects", "files": [{ "path": "src/pages/api/projects/" }] },
-    { "id": "route:projects-list", "label": "List projects", "kind": "route", "layer": "api", "lane": "projects", "parent": "routes:projects", "summary": "GET /api/projects", "files": [{ "path": "src/pages/api/projects/index.ts" }], "meta": { "method": "GET", "path": "/api/projects" } },
-    { "id": "route:projects-create", "label": "Create project", "kind": "route", "layer": "api", "lane": "projects", "parent": "routes:projects", "summary": "POST /api/projects", "files": [{ "path": "src/pages/api/projects/index.ts" }], "meta": { "method": "POST", "path": "/api/projects" } },
-    { "id": "route:project-get", "label": "Get project", "kind": "route", "layer": "api", "lane": "projects", "parent": "routes:projects", "summary": "GET /api/projects/:id", "files": [{ "path": "src/pages/api/projects/[id].ts" }], "meta": { "method": "GET", "path": "/api/projects/:id" } },
-    { "id": "route:project-update", "label": "Update project", "kind": "route", "layer": "api", "lane": "projects", "parent": "routes:projects", "summary": "PATCH /api/projects/:id", "files": [{ "path": "src/pages/api/projects/[id].ts" }], "meta": { "method": "PATCH", "path": "/api/projects/:id" } },
-
-    { "id": "routes:billing", "label": "Billing API", "kind": "route", "layer": "api", "lane": "billing", "summary": "/api/checkout, /api/webhooks/stripe, /api/invoices", "files": [{ "path": "src/pages/api/checkout.ts" }, { "path": "src/pages/api/webhooks/" }, { "path": "src/pages/api/invoices.ts" }] },
-    { "id": "route:checkout", "label": "Create checkout", "kind": "route", "layer": "api", "lane": "billing", "parent": "routes:billing", "summary": "POST /api/checkout", "files": [{ "path": "src/pages/api/checkout.ts" }], "meta": { "method": "POST", "path": "/api/checkout" } },
-    { "id": "route:stripe-webhook", "label": "Stripe webhook", "kind": "route", "layer": "api", "lane": "billing", "parent": "routes:billing", "summary": "POST /api/webhooks/stripe", "files": [{ "path": "src/pages/api/webhooks/stripe.ts" }], "meta": { "method": "POST", "path": "/api/webhooks/stripe" } },
-    { "id": "route:invoices", "label": "List invoices", "kind": "route", "layer": "api", "lane": "billing", "parent": "routes:billing", "summary": "GET /api/invoices", "files": [{ "path": "src/pages/api/invoices.ts" }], "meta": { "method": "GET", "path": "/api/invoices" } },
-
-    { "id": "routes:documents", "label": "Documents API", "kind": "route", "layer": "api", "lane": "documents", "summary": "/api/documents", "files": [{ "path": "src/pages/api/documents/" }] },
-    { "id": "route:documents-list", "label": "List documents", "kind": "route", "layer": "api", "lane": "documents", "parent": "routes:documents", "summary": "GET /api/documents", "files": [{ "path": "src/pages/api/documents/index.ts" }], "meta": { "method": "GET", "path": "/api/documents" } },
-    { "id": "route:document-sign", "label": "Sign document", "kind": "route", "layer": "api", "lane": "documents", "parent": "routes:documents", "summary": "POST /api/documents/:id/sign", "files": [{ "path": "src/pages/api/documents/[id]/sign.ts" }], "meta": { "method": "POST", "path": "/api/documents/:id/sign" } },
-
-    { "id": "service:auth", "label": "Auth service", "kind": "service", "layer": "domain", "lane": "auth", "summary": "Better Auth config, magic-link plugin, org membership", "files": [{ "path": "src/lib/server/auth.ts" }] },
-    { "id": "service:projects", "label": "Projects service", "kind": "service", "layer": "domain", "lane": "projects", "summary": "CRUD + milestone state machine", "files": [{ "path": "src/lib/server/projects.ts" }] },
-    { "id": "service:billing", "label": "Billing service", "kind": "service", "layer": "domain", "lane": "billing", "summary": "Checkout sessions, webhook handling, subscription sync", "files": [{ "path": "src/lib/server/billing/" }] },
-    { "id": "function:create-checkout", "label": "createCheckout()", "kind": "function", "layer": "domain", "lane": "billing", "parent": "service:billing", "summary": "Builds Stripe Checkout Session", "files": [{ "path": "src/lib/server/billing/checkout.ts" }] },
-    { "id": "function:handle-webhook", "label": "handleWebhook()", "kind": "function", "layer": "domain", "lane": "billing", "parent": "service:billing", "summary": "Verifies signature, dispatches by event type", "files": [{ "path": "src/lib/server/billing/webhook.ts" }] },
-    { "id": "function:sync-subscription", "label": "syncSubscription()", "kind": "function", "layer": "domain", "lane": "billing", "parent": "service:billing", "summary": "Upserts subscription + invoice rows", "files": [{ "path": "src/lib/server/billing/sync.ts" }] },
-    { "id": "service:esign", "label": "E-sign service", "kind": "service", "layer": "domain", "lane": "documents", "summary": "Envelope creation, signed PDF storage", "files": [{ "path": "src/lib/server/esign.ts" }] },
-    { "id": "jobs", "label": "Scheduled jobs", "kind": "job", "layer": "domain", "summary": "Cron triggers", "files": [{ "path": "src/jobs/" }] },
-    { "id": "job:digest", "label": "Nightly digest", "kind": "job", "layer": "domain", "lane": "projects", "parent": "jobs", "summary": "Emails clients a project status summary", "files": [{ "path": "src/jobs/digest.ts" }] },
-    { "id": "job:cleanup", "label": "Session cleanup", "kind": "job", "layer": "domain", "lane": "auth", "parent": "jobs", "summary": "Purges expired sessions", "files": [{ "path": "src/jobs/cleanup.ts" }] },
-
-    { "id": "store:d1", "label": "Primary DB (D1)", "kind": "store", "layer": "persistence", "summary": "SQLite via Drizzle — 8 tables", "files": [{ "path": "drizzle/schema.ts" }, { "path": "wrangler.jsonc" }] },
-    { "id": "table:users", "label": "users", "kind": "table", "layer": "persistence", "lane": "auth", "parent": "store:d1", "files": [{ "path": "drizzle/schema.ts", "lines": [5, 18] }] },
-    { "id": "table:sessions", "label": "sessions", "kind": "table", "layer": "persistence", "lane": "auth", "parent": "store:d1", "files": [{ "path": "drizzle/schema.ts", "lines": [20, 30] }] },
-    { "id": "table:orgs", "label": "orgs", "kind": "table", "layer": "persistence", "lane": "auth", "parent": "store:d1", "files": [{ "path": "drizzle/schema.ts", "lines": [32, 42] }] },
-    { "id": "table:projects", "label": "projects", "kind": "table", "layer": "persistence", "lane": "projects", "parent": "store:d1", "files": [{ "path": "drizzle/schema.ts", "lines": [44, 60] }] },
-    { "id": "table:milestones", "label": "milestones", "kind": "table", "layer": "persistence", "lane": "projects", "parent": "store:d1", "files": [{ "path": "drizzle/schema.ts", "lines": [62, 74] }] },
-    { "id": "table:subscriptions", "label": "subscriptions", "kind": "table", "layer": "persistence", "lane": "billing", "parent": "store:d1", "files": [{ "path": "drizzle/schema.ts", "lines": [76, 92] }] },
-    { "id": "table:invoices", "label": "invoices", "kind": "table", "layer": "persistence", "lane": "billing", "parent": "store:d1", "files": [{ "path": "drizzle/schema.ts", "lines": [94, 108] }] },
-    { "id": "table:documents", "label": "documents", "kind": "table", "layer": "persistence", "lane": "documents", "parent": "store:d1", "files": [{ "path": "drizzle/schema.ts", "lines": [110, 126] }] },
-    { "id": "store:kv", "label": "Rate-limit KV", "kind": "cache", "layer": "persistence", "summary": "Token buckets keyed by ip+route", "files": [{ "path": "wrangler.jsonc" }] },
-    { "id": "store:r2", "label": "Documents bucket (R2)", "kind": "store", "layer": "persistence", "lane": "documents", "summary": "Uploaded + signed PDFs", "files": [{ "path": "wrangler.jsonc" }] },
-
-    { "id": "external:resend", "label": "Resend", "kind": "external", "layer": "external", "lane": "auth", "summary": "Transactional email", "tags": ["email"] },
-    { "id": "external:stripe", "label": "Stripe", "kind": "external", "layer": "external", "lane": "billing", "summary": "Checkout + Billing + webhooks", "tags": ["payments"] },
-    { "id": "external:docusign", "label": "DocuSign", "kind": "external", "layer": "external", "lane": "documents", "summary": "Envelopes + embedded signing", "tags": ["esign"] },
-    { "id": "external:sentry", "label": "Sentry", "kind": "external", "layer": "external", "summary": "Errors + traces", "tags": ["observability"] }
+    {
+      "id": "page:login",
+      "label": "Login",
+      "kind": "page",
+      "layer": "client",
+      "lane": "auth",
+      "summary": "/login — magic-link sign-in",
+      "files": [
+        {
+          "path": "src/pages/login.astro"
+        }
+      ],
+      "meta": {
+        "path": "/login"
+      }
+    },
+    {
+      "id": "component:magic-link-form",
+      "label": "MagicLinkForm",
+      "kind": "component",
+      "layer": "client",
+      "lane": "auth",
+      "parent": "page:login",
+      "summary": "Email field + send button",
+      "files": [
+        {
+          "path": "src/components/auth/MagicLinkForm.svelte"
+        }
+      ]
+    },
+    {
+      "id": "component:check-inbox",
+      "label": "CheckInbox",
+      "kind": "component",
+      "layer": "client",
+      "lane": "auth",
+      "parent": "page:login",
+      "summary": "Post-send confirmation state",
+      "files": [
+        {
+          "path": "src/components/auth/CheckInbox.svelte"
+        }
+      ]
+    },
+    {
+      "id": "ui:projects",
+      "label": "Projects UI",
+      "kind": "page",
+      "layer": "client",
+      "lane": "projects",
+      "summary": "/projects, /projects/:id",
+      "files": [
+        {
+          "path": "src/pages/projects/"
+        }
+      ]
+    },
+    {
+      "id": "page:projects-list",
+      "label": "Projects list",
+      "kind": "page",
+      "layer": "client",
+      "lane": "projects",
+      "parent": "ui:projects",
+      "summary": "/projects",
+      "files": [
+        {
+          "path": "src/pages/projects/index.astro"
+        }
+      ],
+      "meta": {
+        "path": "/projects"
+      }
+    },
+    {
+      "id": "page:project-detail",
+      "label": "Project detail",
+      "kind": "page",
+      "layer": "client",
+      "lane": "projects",
+      "parent": "ui:projects",
+      "summary": "/projects/:id",
+      "files": [
+        {
+          "path": "src/pages/projects/[id].astro"
+        }
+      ],
+      "meta": {
+        "path": "/projects/:id"
+      }
+    },
+    {
+      "id": "component:project-card",
+      "label": "ProjectCard",
+      "kind": "component",
+      "layer": "client",
+      "lane": "projects",
+      "parent": "ui:projects",
+      "files": [
+        {
+          "path": "src/components/projects/ProjectCard.svelte"
+        }
+      ]
+    },
+    {
+      "id": "component:timeline",
+      "label": "Timeline",
+      "kind": "component",
+      "layer": "client",
+      "lane": "projects",
+      "parent": "ui:projects",
+      "summary": "Milestones + status chips",
+      "files": [
+        {
+          "path": "src/components/projects/Timeline.svelte"
+        }
+      ]
+    },
+    {
+      "id": "ui:billing",
+      "label": "Billing UI",
+      "kind": "page",
+      "layer": "client",
+      "lane": "billing",
+      "summary": "/checkout, /billing",
+      "files": [
+        {
+          "path": "src/pages/billing/"
+        },
+        {
+          "path": "src/pages/checkout.astro"
+        }
+      ]
+    },
+    {
+      "id": "page:checkout",
+      "label": "Checkout",
+      "kind": "page",
+      "layer": "client",
+      "lane": "billing",
+      "parent": "ui:billing",
+      "summary": "/checkout — pick plan, go to Stripe",
+      "files": [
+        {
+          "path": "src/pages/checkout.astro"
+        }
+      ],
+      "meta": {
+        "path": "/checkout"
+      }
+    },
+    {
+      "id": "page:invoices",
+      "label": "Invoices",
+      "kind": "page",
+      "layer": "client",
+      "lane": "billing",
+      "parent": "ui:billing",
+      "summary": "/billing — history + receipts",
+      "files": [
+        {
+          "path": "src/pages/billing/index.astro"
+        }
+      ],
+      "meta": {
+        "path": "/billing"
+      }
+    },
+    {
+      "id": "component:plan-picker",
+      "label": "PlanPicker",
+      "kind": "component",
+      "layer": "client",
+      "lane": "billing",
+      "parent": "ui:billing",
+      "files": [
+        {
+          "path": "src/components/billing/PlanPicker.svelte"
+        }
+      ]
+    },
+    {
+      "id": "ui:documents",
+      "label": "Documents UI",
+      "kind": "page",
+      "layer": "client",
+      "lane": "documents",
+      "summary": "/documents, /documents/:id/sign",
+      "files": [
+        {
+          "path": "src/pages/documents/"
+        }
+      ]
+    },
+    {
+      "id": "page:documents-list",
+      "label": "Documents list",
+      "kind": "page",
+      "layer": "client",
+      "lane": "documents",
+      "parent": "ui:documents",
+      "summary": "/documents",
+      "files": [
+        {
+          "path": "src/pages/documents/index.astro"
+        }
+      ]
+    },
+    {
+      "id": "component:doc-viewer",
+      "label": "DocViewer",
+      "kind": "component",
+      "layer": "client",
+      "lane": "documents",
+      "parent": "ui:documents",
+      "summary": "PDF render from R2 signed URL",
+      "files": [
+        {
+          "path": "src/components/documents/DocViewer.svelte"
+        }
+      ]
+    },
+    {
+      "id": "component:signature-pad",
+      "label": "SignaturePad",
+      "kind": "component",
+      "layer": "client",
+      "lane": "documents",
+      "parent": "ui:documents",
+      "files": [
+        {
+          "path": "src/components/documents/SignaturePad.svelte"
+        }
+      ]
+    },
+    {
+      "id": "ui:shell",
+      "label": "App shell",
+      "kind": "component",
+      "layer": "client",
+      "summary": "Layout, nav, toasts",
+      "files": [
+        {
+          "path": "src/layouts/"
+        },
+        {
+          "path": "src/components/shell/"
+        }
+      ]
+    },
+    {
+      "id": "component:nav",
+      "label": "Nav",
+      "kind": "component",
+      "layer": "client",
+      "parent": "ui:shell",
+      "files": [
+        {
+          "path": "src/components/shell/Nav.svelte"
+        }
+      ]
+    },
+    {
+      "id": "component:toasts",
+      "label": "Toasts",
+      "kind": "component",
+      "layer": "client",
+      "parent": "ui:shell",
+      "files": [
+        {
+          "path": "src/components/shell/Toasts.svelte"
+        }
+      ]
+    },
+    {
+      "id": "middleware:auth",
+      "label": "Session guard",
+      "kind": "middleware",
+      "layer": "edge",
+      "lane": "auth",
+      "summary": "Resolves session cookie; redirects anon users",
+      "files": [
+        {
+          "path": "src/middleware.ts"
+        }
+      ]
+    },
+    {
+      "id": "function:get-session",
+      "label": "getSession()",
+      "kind": "function",
+      "layer": "edge",
+      "lane": "auth",
+      "parent": "middleware:auth",
+      "files": [
+        {
+          "path": "src/middleware.ts",
+          "lines": [
+            12,
+            40
+          ]
+        }
+      ],
+      "meta": {
+        "signature": "getSession(req: Request, db: DrizzleD1): Promise<Session | null>"
+      }
+    },
+    {
+      "id": "function:require-role",
+      "label": "requireRole()",
+      "kind": "function",
+      "layer": "edge",
+      "lane": "auth",
+      "parent": "middleware:auth",
+      "summary": "admin | client",
+      "files": [
+        {
+          "path": "src/middleware.ts",
+          "lines": [
+            42,
+            61
+          ]
+        }
+      ],
+      "meta": {
+        "signature": "requireRole(session: Session, role: \"admin\" | \"client\"): asserts session is Session"
+      }
+    },
+    {
+      "id": "middleware:rate-limit",
+      "label": "Rate limit",
+      "kind": "middleware",
+      "layer": "edge",
+      "summary": "KV token bucket on /api/*",
+      "files": [
+        {
+          "path": "src/lib/server/rate-limit.ts"
+        }
+      ],
+      "meta": {
+        "limit": "60 req / min / ip",
+        "scope": "/api/*"
+      }
+    },
+    {
+      "id": "route:auth",
+      "label": "Auth handler",
+      "kind": "route",
+      "layer": "api",
+      "lane": "auth",
+      "summary": "ALL /api/auth/* (Better Auth)",
+      "files": [
+        {
+          "path": "src/pages/api/auth/[...all].ts"
+        }
+      ],
+      "meta": {
+        "method": "ALL",
+        "path": "/api/auth/*"
+      }
+    },
+    {
+      "id": "route:auth-send",
+      "label": "Send magic link",
+      "kind": "route",
+      "layer": "api",
+      "lane": "auth",
+      "parent": "route:auth",
+      "summary": "POST /api/auth/magic-link",
+      "meta": {
+        "method": "POST",
+        "path": "/api/auth/magic-link"
+      }
+    },
+    {
+      "id": "route:auth-verify",
+      "label": "Verify link",
+      "kind": "route",
+      "layer": "api",
+      "lane": "auth",
+      "parent": "route:auth",
+      "summary": "GET /api/auth/magic-link/verify",
+      "meta": {
+        "method": "GET",
+        "path": "/api/auth/magic-link/verify"
+      }
+    },
+    {
+      "id": "routes:projects",
+      "label": "Projects API",
+      "kind": "route",
+      "layer": "api",
+      "lane": "projects",
+      "summary": "/api/projects",
+      "files": [
+        {
+          "path": "src/pages/api/projects/"
+        }
+      ]
+    },
+    {
+      "id": "route:projects-list",
+      "label": "List projects",
+      "kind": "route",
+      "layer": "api",
+      "lane": "projects",
+      "parent": "routes:projects",
+      "summary": "GET /api/projects",
+      "files": [
+        {
+          "path": "src/pages/api/projects/index.ts"
+        }
+      ],
+      "meta": {
+        "method": "GET",
+        "path": "/api/projects"
+      }
+    },
+    {
+      "id": "route:projects-create",
+      "label": "Create project",
+      "kind": "route",
+      "layer": "api",
+      "lane": "projects",
+      "parent": "routes:projects",
+      "summary": "POST /api/projects",
+      "files": [
+        {
+          "path": "src/pages/api/projects/index.ts"
+        }
+      ],
+      "meta": {
+        "method": "POST",
+        "path": "/api/projects"
+      }
+    },
+    {
+      "id": "route:project-get",
+      "label": "Get project",
+      "kind": "route",
+      "layer": "api",
+      "lane": "projects",
+      "parent": "routes:projects",
+      "summary": "GET /api/projects/:id",
+      "files": [
+        {
+          "path": "src/pages/api/projects/[id].ts"
+        }
+      ],
+      "meta": {
+        "method": "GET",
+        "path": "/api/projects/:id"
+      }
+    },
+    {
+      "id": "route:project-update",
+      "label": "Update project",
+      "kind": "route",
+      "layer": "api",
+      "lane": "projects",
+      "parent": "routes:projects",
+      "summary": "PATCH /api/projects/:id",
+      "files": [
+        {
+          "path": "src/pages/api/projects/[id].ts"
+        }
+      ],
+      "meta": {
+        "method": "PATCH",
+        "path": "/api/projects/:id"
+      }
+    },
+    {
+      "id": "routes:billing",
+      "label": "Billing API",
+      "kind": "route",
+      "layer": "api",
+      "lane": "billing",
+      "summary": "/api/checkout, /api/webhooks/stripe, /api/invoices",
+      "files": [
+        {
+          "path": "src/pages/api/checkout.ts"
+        },
+        {
+          "path": "src/pages/api/webhooks/"
+        },
+        {
+          "path": "src/pages/api/invoices.ts"
+        }
+      ]
+    },
+    {
+      "id": "route:checkout",
+      "label": "Create checkout",
+      "kind": "route",
+      "layer": "api",
+      "lane": "billing",
+      "parent": "routes:billing",
+      "summary": "POST /api/checkout",
+      "files": [
+        {
+          "path": "src/pages/api/checkout.ts"
+        }
+      ],
+      "meta": {
+        "method": "POST",
+        "path": "/api/checkout"
+      }
+    },
+    {
+      "id": "route:stripe-webhook",
+      "label": "Stripe webhook",
+      "kind": "route",
+      "layer": "api",
+      "lane": "billing",
+      "parent": "routes:billing",
+      "summary": "POST /api/webhooks/stripe",
+      "files": [
+        {
+          "path": "src/pages/api/webhooks/stripe.ts"
+        }
+      ],
+      "meta": {
+        "method": "POST",
+        "path": "/api/webhooks/stripe"
+      }
+    },
+    {
+      "id": "route:invoices",
+      "label": "List invoices",
+      "kind": "route",
+      "layer": "api",
+      "lane": "billing",
+      "parent": "routes:billing",
+      "summary": "GET /api/invoices",
+      "files": [
+        {
+          "path": "src/pages/api/invoices.ts"
+        }
+      ],
+      "meta": {
+        "method": "GET",
+        "path": "/api/invoices"
+      }
+    },
+    {
+      "id": "routes:documents",
+      "label": "Documents API",
+      "kind": "route",
+      "layer": "api",
+      "lane": "documents",
+      "summary": "/api/documents",
+      "files": [
+        {
+          "path": "src/pages/api/documents/"
+        }
+      ]
+    },
+    {
+      "id": "route:documents-list",
+      "label": "List documents",
+      "kind": "route",
+      "layer": "api",
+      "lane": "documents",
+      "parent": "routes:documents",
+      "summary": "GET /api/documents",
+      "files": [
+        {
+          "path": "src/pages/api/documents/index.ts"
+        }
+      ],
+      "meta": {
+        "method": "GET",
+        "path": "/api/documents"
+      }
+    },
+    {
+      "id": "route:document-sign",
+      "label": "Sign document",
+      "kind": "route",
+      "layer": "api",
+      "lane": "documents",
+      "parent": "routes:documents",
+      "summary": "POST /api/documents/:id/sign",
+      "files": [
+        {
+          "path": "src/pages/api/documents/[id]/sign.ts"
+        }
+      ],
+      "meta": {
+        "method": "POST",
+        "path": "/api/documents/:id/sign"
+      }
+    },
+    {
+      "id": "service:auth",
+      "label": "Auth service",
+      "kind": "service",
+      "layer": "domain",
+      "lane": "auth",
+      "summary": "Better Auth config, magic-link plugin, org membership",
+      "files": [
+        {
+          "path": "src/lib/server/auth.ts"
+        }
+      ]
+    },
+    {
+      "id": "service:projects",
+      "label": "Projects service",
+      "kind": "service",
+      "layer": "domain",
+      "lane": "projects",
+      "summary": "CRUD + milestone state machine",
+      "files": [
+        {
+          "path": "src/lib/server/projects.ts"
+        }
+      ]
+    },
+    {
+      "id": "service:billing",
+      "label": "Billing service",
+      "kind": "service",
+      "layer": "domain",
+      "lane": "billing",
+      "summary": "Checkout sessions, webhook handling, subscription sync",
+      "files": [
+        {
+          "path": "src/lib/server/billing/"
+        }
+      ]
+    },
+    {
+      "id": "function:create-checkout",
+      "label": "createCheckout()",
+      "kind": "function",
+      "layer": "domain",
+      "lane": "billing",
+      "parent": "service:billing",
+      "summary": "Builds Stripe Checkout Session",
+      "files": [
+        {
+          "path": "src/lib/server/billing/checkout.ts"
+        }
+      ],
+      "meta": {
+        "signature": "createCheckout(db: DrizzleD1, orgId: string, plan: PlanId): Promise<{ url: string }>"
+      }
+    },
+    {
+      "id": "function:handle-webhook",
+      "label": "handleWebhook()",
+      "kind": "function",
+      "layer": "domain",
+      "lane": "billing",
+      "parent": "service:billing",
+      "summary": "Verifies signature, dispatches by event type",
+      "files": [
+        {
+          "path": "src/lib/server/billing/webhook.ts"
+        }
+      ],
+      "meta": {
+        "signature": "handleWebhook(req: Request, env: Env): Promise<Response>"
+      }
+    },
+    {
+      "id": "function:sync-subscription",
+      "label": "syncSubscription()",
+      "kind": "function",
+      "layer": "domain",
+      "lane": "billing",
+      "parent": "service:billing",
+      "summary": "Upserts subscription + invoice rows",
+      "files": [
+        {
+          "path": "src/lib/server/billing/sync.ts"
+        }
+      ],
+      "meta": {
+        "signature": "syncSubscription(db: DrizzleD1, event: Stripe.Event): Promise<void>"
+      }
+    },
+    {
+      "id": "service:esign",
+      "label": "E-sign service",
+      "kind": "service",
+      "layer": "domain",
+      "lane": "documents",
+      "summary": "Envelope creation, signed PDF storage",
+      "files": [
+        {
+          "path": "src/lib/server/esign.ts"
+        }
+      ]
+    },
+    {
+      "id": "jobs",
+      "label": "Scheduled jobs",
+      "kind": "job",
+      "layer": "domain",
+      "summary": "Cron triggers",
+      "files": [
+        {
+          "path": "src/jobs/"
+        }
+      ]
+    },
+    {
+      "id": "job:digest",
+      "label": "Nightly digest",
+      "kind": "job",
+      "layer": "domain",
+      "lane": "projects",
+      "parent": "jobs",
+      "summary": "Emails clients a project status summary",
+      "files": [
+        {
+          "path": "src/jobs/digest.ts"
+        }
+      ]
+    },
+    {
+      "id": "job:cleanup",
+      "label": "Session cleanup",
+      "kind": "job",
+      "layer": "domain",
+      "lane": "auth",
+      "parent": "jobs",
+      "summary": "Purges expired sessions",
+      "files": [
+        {
+          "path": "src/jobs/cleanup.ts"
+        }
+      ]
+    },
+    {
+      "id": "store:d1",
+      "label": "Primary DB (D1)",
+      "kind": "store",
+      "layer": "persistence",
+      "summary": "SQLite via Drizzle — 8 tables",
+      "files": [
+        {
+          "path": "drizzle/schema.ts"
+        },
+        {
+          "path": "wrangler.jsonc"
+        }
+      ],
+      "meta": {
+        "binding": {
+          "binding": "DB",
+          "database_name": "acme-portal",
+          "migrations_dir": "drizzle"
+        }
+      }
+    },
+    {
+      "id": "table:users",
+      "label": "users",
+      "kind": "table",
+      "layer": "persistence",
+      "lane": "auth",
+      "parent": "store:d1",
+      "files": [
+        {
+          "path": "drizzle/schema.ts",
+          "lines": [
+            5,
+            18
+          ]
+        }
+      ],
+      "meta": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "text pk"
+          },
+          {
+            "name": "email",
+            "type": "text unique"
+          },
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "role",
+            "type": "text: admin|client"
+          },
+          {
+            "name": "org_id",
+            "type": "text fk orgs"
+          },
+          {
+            "name": "created_at",
+            "type": "integer ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table:sessions",
+      "label": "sessions",
+      "kind": "table",
+      "layer": "persistence",
+      "lane": "auth",
+      "parent": "store:d1",
+      "files": [
+        {
+          "path": "drizzle/schema.ts",
+          "lines": [
+            20,
+            30
+          ]
+        }
+      ],
+      "meta": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "text pk"
+          },
+          {
+            "name": "user_id",
+            "type": "text fk users"
+          },
+          {
+            "name": "token",
+            "type": "text unique"
+          },
+          {
+            "name": "expires_at",
+            "type": "integer ts"
+          },
+          {
+            "name": "ip",
+            "type": "text"
+          },
+          {
+            "name": "user_agent",
+            "type": "text"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table:orgs",
+      "label": "orgs",
+      "kind": "table",
+      "layer": "persistence",
+      "lane": "auth",
+      "parent": "store:d1",
+      "files": [
+        {
+          "path": "drizzle/schema.ts",
+          "lines": [
+            32,
+            42
+          ]
+        }
+      ],
+      "meta": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "text pk"
+          },
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "stripe_customer_id",
+            "type": "text unique"
+          },
+          {
+            "name": "created_at",
+            "type": "integer ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table:projects",
+      "label": "projects",
+      "kind": "table",
+      "layer": "persistence",
+      "lane": "projects",
+      "parent": "store:d1",
+      "files": [
+        {
+          "path": "drizzle/schema.ts",
+          "lines": [
+            44,
+            60
+          ]
+        }
+      ],
+      "meta": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "text pk"
+          },
+          {
+            "name": "org_id",
+            "type": "text fk orgs"
+          },
+          {
+            "name": "name",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "text: draft|active|done"
+          },
+          {
+            "name": "owner_id",
+            "type": "text fk users"
+          },
+          {
+            "name": "created_at",
+            "type": "integer ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table:milestones",
+      "label": "milestones",
+      "kind": "table",
+      "layer": "persistence",
+      "lane": "projects",
+      "parent": "store:d1",
+      "files": [
+        {
+          "path": "drizzle/schema.ts",
+          "lines": [
+            62,
+            74
+          ]
+        }
+      ],
+      "meta": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "text pk"
+          },
+          {
+            "name": "project_id",
+            "type": "text fk projects"
+          },
+          {
+            "name": "title",
+            "type": "text"
+          },
+          {
+            "name": "due_at",
+            "type": "integer ts"
+          },
+          {
+            "name": "done_at",
+            "type": "integer ts null"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table:subscriptions",
+      "label": "subscriptions",
+      "kind": "table",
+      "layer": "persistence",
+      "lane": "billing",
+      "parent": "store:d1",
+      "files": [
+        {
+          "path": "drizzle/schema.ts",
+          "lines": [
+            76,
+            92
+          ]
+        }
+      ],
+      "meta": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "text pk"
+          },
+          {
+            "name": "org_id",
+            "type": "text fk orgs"
+          },
+          {
+            "name": "stripe_subscription_id",
+            "type": "text unique"
+          },
+          {
+            "name": "plan",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "text"
+          },
+          {
+            "name": "current_period_end",
+            "type": "integer ts"
+          },
+          {
+            "name": "updated_at",
+            "type": "integer ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table:invoices",
+      "label": "invoices",
+      "kind": "table",
+      "layer": "persistence",
+      "lane": "billing",
+      "parent": "store:d1",
+      "files": [
+        {
+          "path": "drizzle/schema.ts",
+          "lines": [
+            94,
+            108
+          ]
+        }
+      ],
+      "meta": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "text pk"
+          },
+          {
+            "name": "org_id",
+            "type": "text fk orgs"
+          },
+          {
+            "name": "stripe_invoice_id",
+            "type": "text unique"
+          },
+          {
+            "name": "amount_cents",
+            "type": "integer"
+          },
+          {
+            "name": "currency",
+            "type": "text"
+          },
+          {
+            "name": "status",
+            "type": "text: open|paid|void"
+          },
+          {
+            "name": "pdf_url",
+            "type": "text"
+          },
+          {
+            "name": "issued_at",
+            "type": "integer ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "table:documents",
+      "label": "documents",
+      "kind": "table",
+      "layer": "persistence",
+      "lane": "documents",
+      "parent": "store:d1",
+      "files": [
+        {
+          "path": "drizzle/schema.ts",
+          "lines": [
+            110,
+            126
+          ]
+        }
+      ],
+      "meta": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "text pk"
+          },
+          {
+            "name": "project_id",
+            "type": "text fk projects"
+          },
+          {
+            "name": "title",
+            "type": "text"
+          },
+          {
+            "name": "r2_key",
+            "type": "text"
+          },
+          {
+            "name": "envelope_id",
+            "type": "text null"
+          },
+          {
+            "name": "signed_at",
+            "type": "integer ts null"
+          }
+        ]
+      }
+    },
+    {
+      "id": "store:kv",
+      "label": "Rate-limit KV",
+      "kind": "cache",
+      "layer": "persistence",
+      "summary": "Token buckets keyed by ip+route",
+      "files": [
+        {
+          "path": "wrangler.jsonc"
+        }
+      ],
+      "meta": {
+        "binding": {
+          "binding": "RATE_LIMIT",
+          "ttl_seconds": 60
+        }
+      }
+    },
+    {
+      "id": "store:r2",
+      "label": "Documents bucket (R2)",
+      "kind": "store",
+      "layer": "persistence",
+      "lane": "documents",
+      "summary": "Uploaded + signed PDFs",
+      "files": [
+        {
+          "path": "wrangler.jsonc"
+        }
+      ],
+      "meta": {
+        "binding": {
+          "binding": "DOCS",
+          "bucket_name": "acme-portal-docs",
+          "max_object_mb": 25
+        }
+      }
+    },
+    {
+      "id": "external:resend",
+      "label": "Resend",
+      "kind": "external",
+      "layer": "external",
+      "lane": "auth",
+      "summary": "Transactional email",
+      "tags": [
+        "email"
+      ]
+    },
+    {
+      "id": "external:stripe",
+      "label": "Stripe",
+      "kind": "external",
+      "layer": "external",
+      "lane": "billing",
+      "summary": "Checkout + Billing + webhooks",
+      "tags": [
+        "payments"
+      ],
+      "meta": {
+        "api_version": "2026-06-30",
+        "webhook_events": "checkout.session.completed, customer.subscription.updated, invoice.paid"
+      }
+    },
+    {
+      "id": "external:docusign",
+      "label": "DocuSign",
+      "kind": "external",
+      "layer": "external",
+      "lane": "documents",
+      "summary": "Envelopes + embedded signing",
+      "tags": [
+        "esign"
+      ]
+    },
+    {
+      "id": "external:sentry",
+      "label": "Sentry",
+      "kind": "external",
+      "layer": "external",
+      "summary": "Errors + traces",
+      "tags": [
+        "observability"
+      ]
+    }
   ],
   "edges": [
-    { "from": "page:login", "to": "route:auth-send", "kind": "calls", "label": "POST magic link" },
-    { "from": "component:magic-link-form", "to": "route:auth-send", "kind": "calls" },
-    { "from": "route:auth-send", "to": "service:auth", "kind": "calls" },
-    { "from": "route:auth-verify", "to": "service:auth", "kind": "calls" },
-    { "from": "service:auth", "to": "external:resend", "kind": "calls", "label": "send email" },
-    { "from": "service:auth", "to": "table:users", "kind": "writes" },
-    { "from": "service:auth", "to": "table:sessions", "kind": "writes" },
-    { "from": "service:auth", "to": "table:orgs", "kind": "reads" },
-    { "from": "middleware:auth", "to": "table:sessions", "kind": "reads" },
-    { "from": "function:get-session", "to": "table:sessions", "kind": "reads" },
-    { "from": "middleware:auth", "to": "routes:projects", "kind": "guards" },
-    { "from": "middleware:auth", "to": "routes:billing", "kind": "guards" },
-    { "from": "middleware:auth", "to": "routes:documents", "kind": "guards" },
-    { "from": "middleware:rate-limit", "to": "store:kv", "kind": "reads" },
-    { "from": "middleware:rate-limit", "to": "store:kv", "kind": "writes" },
-    { "from": "middleware:rate-limit", "to": "route:auth", "kind": "guards" },
-
-    { "from": "page:projects-list", "to": "route:projects-list", "kind": "calls" },
-    { "from": "page:project-detail", "to": "route:project-get", "kind": "calls" },
-    { "from": "page:project-detail", "to": "route:project-update", "kind": "calls" },
-    { "from": "page:projects-list", "to": "component:project-card", "kind": "renders" },
-    { "from": "page:project-detail", "to": "component:timeline", "kind": "renders" },
-    { "from": "route:projects-list", "to": "service:projects", "kind": "calls" },
-    { "from": "route:projects-create", "to": "service:projects", "kind": "calls" },
-    { "from": "route:project-get", "to": "service:projects", "kind": "calls" },
-    { "from": "route:project-update", "to": "service:projects", "kind": "calls" },
-    { "from": "service:projects", "to": "table:projects", "kind": "reads" },
-    { "from": "service:projects", "to": "table:projects", "kind": "writes" },
-    { "from": "service:projects", "to": "table:milestones", "kind": "writes" },
-    { "from": "job:digest", "to": "table:projects", "kind": "reads" },
-    { "from": "job:digest", "to": "external:resend", "kind": "calls" },
-    { "from": "job:cleanup", "to": "table:sessions", "kind": "writes", "label": "delete expired" },
-
-    { "from": "page:checkout", "to": "route:checkout", "kind": "calls" },
-    { "from": "page:checkout", "to": "component:plan-picker", "kind": "renders" },
-    { "from": "page:invoices", "to": "route:invoices", "kind": "calls" },
-    { "from": "route:checkout", "to": "function:create-checkout", "kind": "calls" },
-    { "from": "route:stripe-webhook", "to": "function:handle-webhook", "kind": "calls" },
-    { "from": "route:invoices", "to": "table:invoices", "kind": "reads" },
-    { "from": "function:create-checkout", "to": "external:stripe", "kind": "calls", "label": "checkout.sessions.create" },
-    { "from": "external:stripe", "to": "route:stripe-webhook", "kind": "calls", "label": "webhook" },
-    { "from": "function:handle-webhook", "to": "function:sync-subscription", "kind": "calls" },
-    { "from": "function:sync-subscription", "to": "table:subscriptions", "kind": "writes" },
-    { "from": "function:sync-subscription", "to": "table:invoices", "kind": "writes" },
-    { "from": "function:sync-subscription", "to": "table:users", "kind": "reads" },
-
-    { "from": "page:documents-list", "to": "route:documents-list", "kind": "calls" },
-    { "from": "component:signature-pad", "to": "route:document-sign", "kind": "calls" },
-    { "from": "ui:documents", "to": "component:doc-viewer", "kind": "renders" },
-    { "from": "route:documents-list", "to": "table:documents", "kind": "reads" },
-    { "from": "route:document-sign", "to": "service:esign", "kind": "calls" },
-    { "from": "service:esign", "to": "external:docusign", "kind": "calls" },
-    { "from": "service:esign", "to": "store:r2", "kind": "writes" },
-    { "from": "service:esign", "to": "table:documents", "kind": "writes" },
-    { "from": "component:doc-viewer", "to": "store:r2", "kind": "reads", "label": "signed URL" },
-
-    { "from": "ui:shell", "to": "page:login", "kind": "navigates" },
-    { "from": "ui:shell", "to": "ui:projects", "kind": "navigates" },
-    { "from": "ui:shell", "to": "ui:billing", "kind": "navigates" },
-    { "from": "ui:shell", "to": "ui:documents", "kind": "navigates" },
-    { "from": "service:billing", "to": "external:sentry", "kind": "emits" },
-    { "from": "service:projects", "to": "external:sentry", "kind": "emits" }
+    {
+      "from": "page:login",
+      "to": "route:auth-send",
+      "kind": "calls",
+      "label": "POST magic link"
+    },
+    {
+      "from": "component:magic-link-form",
+      "to": "route:auth-send",
+      "kind": "calls"
+    },
+    {
+      "from": "route:auth-send",
+      "to": "service:auth",
+      "kind": "calls"
+    },
+    {
+      "from": "route:auth-verify",
+      "to": "service:auth",
+      "kind": "calls"
+    },
+    {
+      "from": "service:auth",
+      "to": "external:resend",
+      "kind": "calls",
+      "label": "send email"
+    },
+    {
+      "from": "service:auth",
+      "to": "table:users",
+      "kind": "writes"
+    },
+    {
+      "from": "service:auth",
+      "to": "table:sessions",
+      "kind": "writes"
+    },
+    {
+      "from": "service:auth",
+      "to": "table:orgs",
+      "kind": "reads"
+    },
+    {
+      "from": "middleware:auth",
+      "to": "table:sessions",
+      "kind": "reads"
+    },
+    {
+      "from": "function:get-session",
+      "to": "table:sessions",
+      "kind": "reads"
+    },
+    {
+      "from": "middleware:auth",
+      "to": "routes:projects",
+      "kind": "guards"
+    },
+    {
+      "from": "middleware:auth",
+      "to": "routes:billing",
+      "kind": "guards"
+    },
+    {
+      "from": "middleware:auth",
+      "to": "routes:documents",
+      "kind": "guards"
+    },
+    {
+      "from": "middleware:rate-limit",
+      "to": "store:kv",
+      "kind": "reads"
+    },
+    {
+      "from": "middleware:rate-limit",
+      "to": "store:kv",
+      "kind": "writes"
+    },
+    {
+      "from": "middleware:rate-limit",
+      "to": "route:auth",
+      "kind": "guards"
+    },
+    {
+      "from": "page:projects-list",
+      "to": "route:projects-list",
+      "kind": "calls"
+    },
+    {
+      "from": "page:project-detail",
+      "to": "route:project-get",
+      "kind": "calls"
+    },
+    {
+      "from": "page:project-detail",
+      "to": "route:project-update",
+      "kind": "calls"
+    },
+    {
+      "from": "page:projects-list",
+      "to": "component:project-card",
+      "kind": "renders"
+    },
+    {
+      "from": "page:project-detail",
+      "to": "component:timeline",
+      "kind": "renders"
+    },
+    {
+      "from": "route:projects-list",
+      "to": "service:projects",
+      "kind": "calls"
+    },
+    {
+      "from": "route:projects-create",
+      "to": "service:projects",
+      "kind": "calls"
+    },
+    {
+      "from": "route:project-get",
+      "to": "service:projects",
+      "kind": "calls"
+    },
+    {
+      "from": "route:project-update",
+      "to": "service:projects",
+      "kind": "calls"
+    },
+    {
+      "from": "service:projects",
+      "to": "table:projects",
+      "kind": "reads"
+    },
+    {
+      "from": "service:projects",
+      "to": "table:projects",
+      "kind": "writes"
+    },
+    {
+      "from": "service:projects",
+      "to": "table:milestones",
+      "kind": "writes"
+    },
+    {
+      "from": "job:digest",
+      "to": "table:projects",
+      "kind": "reads"
+    },
+    {
+      "from": "job:digest",
+      "to": "external:resend",
+      "kind": "calls"
+    },
+    {
+      "from": "job:cleanup",
+      "to": "table:sessions",
+      "kind": "writes",
+      "label": "delete expired"
+    },
+    {
+      "from": "page:checkout",
+      "to": "route:checkout",
+      "kind": "calls"
+    },
+    {
+      "from": "page:checkout",
+      "to": "component:plan-picker",
+      "kind": "renders"
+    },
+    {
+      "from": "page:invoices",
+      "to": "route:invoices",
+      "kind": "calls"
+    },
+    {
+      "from": "route:checkout",
+      "to": "function:create-checkout",
+      "kind": "calls"
+    },
+    {
+      "from": "route:stripe-webhook",
+      "to": "function:handle-webhook",
+      "kind": "calls"
+    },
+    {
+      "from": "route:invoices",
+      "to": "table:invoices",
+      "kind": "reads"
+    },
+    {
+      "from": "function:create-checkout",
+      "to": "external:stripe",
+      "kind": "calls",
+      "label": "checkout.sessions.create"
+    },
+    {
+      "from": "external:stripe",
+      "to": "route:stripe-webhook",
+      "kind": "calls",
+      "label": "webhook"
+    },
+    {
+      "from": "function:handle-webhook",
+      "to": "function:sync-subscription",
+      "kind": "calls"
+    },
+    {
+      "from": "function:sync-subscription",
+      "to": "table:subscriptions",
+      "kind": "writes"
+    },
+    {
+      "from": "function:sync-subscription",
+      "to": "table:invoices",
+      "kind": "writes"
+    },
+    {
+      "from": "function:sync-subscription",
+      "to": "table:users",
+      "kind": "reads"
+    },
+    {
+      "from": "page:documents-list",
+      "to": "route:documents-list",
+      "kind": "calls"
+    },
+    {
+      "from": "component:signature-pad",
+      "to": "route:document-sign",
+      "kind": "calls"
+    },
+    {
+      "from": "ui:documents",
+      "to": "component:doc-viewer",
+      "kind": "renders"
+    },
+    {
+      "from": "route:documents-list",
+      "to": "table:documents",
+      "kind": "reads"
+    },
+    {
+      "from": "route:document-sign",
+      "to": "service:esign",
+      "kind": "calls"
+    },
+    {
+      "from": "service:esign",
+      "to": "external:docusign",
+      "kind": "calls"
+    },
+    {
+      "from": "service:esign",
+      "to": "store:r2",
+      "kind": "writes"
+    },
+    {
+      "from": "service:esign",
+      "to": "table:documents",
+      "kind": "writes"
+    },
+    {
+      "from": "component:doc-viewer",
+      "to": "store:r2",
+      "kind": "reads",
+      "label": "signed URL"
+    },
+    {
+      "from": "ui:shell",
+      "to": "page:login",
+      "kind": "navigates"
+    },
+    {
+      "from": "ui:shell",
+      "to": "ui:projects",
+      "kind": "navigates"
+    },
+    {
+      "from": "ui:shell",
+      "to": "ui:billing",
+      "kind": "navigates"
+    },
+    {
+      "from": "ui:shell",
+      "to": "ui:documents",
+      "kind": "navigates"
+    },
+    {
+      "from": "service:billing",
+      "to": "external:sentry",
+      "kind": "emits"
+    },
+    {
+      "from": "service:projects",
+      "to": "external:sentry",
+      "kind": "emits"
+    }
   ]
 }

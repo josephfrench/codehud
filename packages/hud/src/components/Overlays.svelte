@@ -38,6 +38,8 @@
           <tr><td><kbd>a</kbd></td><td>toggle the activity trail</td></tr>
           <tr><td><kbd>t</kbd></td><td>toggle dark / light theme</td></tr>
           <tr><td><kbd>m</kbd></td><td>toggle focus view / whole map</td></tr>
+          <tr><td><kbd>d</kbd></td><td>docs: project files with markdown preview</td></tr>
+          <tr><td><kbd>q</kbd></td><td>collapse / expand the question drawer</td></tr>
           <tr><td>wheel / drag</td><td>zoom / pan (switches to free roam)</td></tr>
           <tr><td>double-click</td><td>open a node</td></tr>
         </tbody>

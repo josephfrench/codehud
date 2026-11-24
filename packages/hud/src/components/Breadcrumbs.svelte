@@ -19,6 +19,8 @@
       <button class="ghost" onclick={() => hud.sibling(1)} title="Next sibling (→)">›</button>
     </span>
   {/if}
+  <button class="crumb docs" onclick={() => (hud.view = 'docs')} title="Files and docs (d)">≣ docs</button>
+  <button class="crumb docs" onclick={() => (hud.view = 'focus')} title="Back to the agent (m)">◎ play</button>
   <span class="hint">
     {#if hud.current}<kbd>Esc</kbd> up{:else}<kbd>←</kbd><kbd>→</kbd> lanes{/if}
     <kbd>?</kbd> keys
@@ -33,6 +35,7 @@
   .crumb.current { color: var(--fg); font-weight: 600; }
   .root { font-family: var(--mono); font-size: 12px; }
   .sep { color: var(--fg-3); }
+  .docs { margin-left: 8px; font-size: 12px; border-left: 1px solid var(--line); border-radius: 0; }
   .sibs { display: inline-flex; align-items: center; margin-left: 6px; padding-left: 6px; border-left: 1px solid var(--line); }
   .sibs .ghost { padding: 1px 7px; font-size: 15px; line-height: 1; }
   .n { font: 11px var(--mono); color: var(--fg-3); }
