@@ -127,7 +127,12 @@ class HudState {
         this.activity = ev.activity;
         const p = this.pending[0];
         if (p) { this.activeQuestionId = p.id; this.goTo(p.resolvedNodes); }
-        else this.requestFit(null);
+        else {
+          // resume where the agent last was, so a reload is not a blank stage
+          const last = [...ev.activity].reverse().find((a) => a.nodes?.length);
+          if (last?.nodes) { this.agentAt = { nodes: last.nodes, note: last.text, at: last.at, session: last.session }; this.goTo(last.nodes); }
+          else this.requestFit(null);
+        }
         break;
       }
       case 'map': this.setMap(ev.map); break;
