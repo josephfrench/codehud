@@ -4,6 +4,7 @@
   import { md, timeAgo } from '../lib/md.ts';
   import type { Question } from '../../../schema/src/protocol.ts';
 
+  let { compact = false }: { compact?: boolean } = $props();
   const q = $derived(hud.activeQuestion);
   let more = $state(false);
   let text = $state('');
@@ -58,7 +59,7 @@
       </span>
     </header>
 
-    {#if q.resolvedNodes.length}
+    {#if q.resolvedNodes.length && !compact}
       <div class="where">
         {#each q.resolvedNodes as id (id)}
           <button class="chip" onclick={() => hud.goTo([id], { select: true })}>{nodeLabel(id)}</button>
@@ -131,7 +132,7 @@
   </section>
 {/if}
 
-{#if recent.length}
+{#if recent.length && !compact}
   <section class="recent">
     <h3>Recent decisions</h3>
     {#each recent as r (r.id)}

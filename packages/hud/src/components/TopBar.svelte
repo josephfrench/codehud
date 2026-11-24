@@ -49,8 +49,8 @@
     <button class="mode" class:follow={hud.mode === 'follow'} onclick={() => hud.toggleMode()} title="Toggle follow / free roam (f)">
       {hud.mode === 'follow' ? '● following agent' : '○ free roam'}
     </button>
-    <button class="ghost" class:on={hud.showImports} onclick={() => (hud.showImports = !hud.showImports)} title="Toggle import edges (i)">imports</button>
-    <button class="ghost" class:on={hud.showActivity} onclick={() => (hud.showActivity = !hud.showActivity)} title="Toggle activity (a)">activity</button>
+    <button class="ghost" class:on={hud.view === 'map'} onclick={() => (hud.view = hud.view === 'map' ? 'focus' : 'map')} title="Toggle focus / whole map (m)">{hud.view === 'map' ? 'focus' : 'map'}</button>
+    <button class="ghost" class:on={hud.showActivity} onclick={() => (hud.showActivity = !hud.showActivity)} title="Toggle activity (a)">log</button>
     <button class="ghost" onclick={() => hud.toggleTheme()} title="Toggle theme (t)">{hud.theme === 'dark' ? '☾' : '☀'}</button>
     <button class="ghost" onclick={() => (hud.showHelp = !hud.showHelp)} title="Keyboard help (?)">?</button>
     <span class="conn" class:ok={hud.connected} title={hud.connected ? 'connected' : 'disconnected'}></span>

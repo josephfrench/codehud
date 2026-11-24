@@ -26,7 +26,9 @@ class HudState {
   activeQuestionId = $state<string | null>(null);
   showImports = $state(false);
   showHelp = $state(false);
-  showActivity = $state(true);
+  showActivity = $state(false);
+  /** 'focus' shows only the relevant slice; 'map' is the whole layer x lane grid */
+  view = $state<'focus' | 'map'>('focus');
   theme = $state<'dark' | 'light'>((() => { try { return (localStorage.getItem('codehud-theme') as 'dark' | 'light') || 'dark'; } catch { return 'dark'; } })());
   toasts = $state<Toast[]>([]);
   /** bump to ask the canvas to fit these ids (null = whole level) */

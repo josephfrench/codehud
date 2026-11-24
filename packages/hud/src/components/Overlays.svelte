@@ -37,6 +37,7 @@
           <tr><td><kbd>i</kbd></td><td>toggle import / dependency edges</td></tr>
           <tr><td><kbd>a</kbd></td><td>toggle the activity trail</td></tr>
           <tr><td><kbd>t</kbd></td><td>toggle dark / light theme</td></tr>
+          <tr><td><kbd>m</kbd></td><td>toggle focus view / whole map</td></tr>
           <tr><td>wheel / drag</td><td>zoom / pan (switches to free roam)</td></tr>
           <tr><td>double-click</td><td>open a node</td></tr>
         </tbody>
