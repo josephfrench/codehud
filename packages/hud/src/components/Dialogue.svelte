@@ -94,7 +94,7 @@
   .muted { color: var(--fg-2); font-size: 13.5px; }
   .ago { color: var(--fg-3); font-size: 11px; margin-left: 6px; }
   .ctx { color: var(--fg-2); font-size: 12.5px; margin-bottom: 8px; }
-  .opts { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px; }
+  .opts { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px; }
   .opt { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; padding: 8px 10px; border-radius: 10px; background: var(--bg-3); }
   .opt:hover { border-color: var(--accent); }
   .opt kbd { margin: 2px 0 0; }

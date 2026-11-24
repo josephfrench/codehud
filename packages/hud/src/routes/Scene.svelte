@@ -20,7 +20,7 @@
   const layout = $derived(hud.index ? focusLayout(hud.index, focalIds, { showImports: hud.showImports, maxSide: 6 }) : null);
 
   interface Placed { n: FNode; x: number; y: number; s: number; node: SysNode | null }
-  const ROW = { up: { y: 17, s: 0.6, spread: 64 }, focal: { y: 40, s: 1, spread: 56 }, down: { y: 61, s: 0.72, spread: 60 }, more: { y: 0, s: 0.6, spread: 0 } } as const;
+  const ROW = { up: { y: 14, s: 0.58, spread: 64 }, focal: { y: 36, s: 1, spread: 56 }, down: { y: 56, s: 0.7, spread: 60 }, more: { y: 0, s: 0.6, spread: 0 } } as const;
   const placed = $derived.by<Placed[]>(() => {
     if (!layout) return [];
     const rows: Record<string, FNode[]> = { up: [], focal: [], down: [] };
@@ -126,7 +126,7 @@
               {#if p.n.role === 'focal' && metaLine(p.node)}<span class="meta">{metaLine(p.node)}</span>{/if}
             </div>
             <div class="shadow"></div>
-            <Sprite kind={p.node.kind} size={150} color={stateOf(p.n.id) === 'pending' ? 'var(--accent)' : layerColor(p.node)} state={stateOf(p.n.id)} />
+            <Sprite kind={p.node.kind} size={136} color={stateOf(p.n.id) === 'pending' ? 'var(--accent)' : layerColor(p.node)} state={stateOf(p.n.id)} />
             {#if p.n.children.length}<div class="kids">{p.n.children.length} inside</div>{/if}
             {#if hud.agentSet.has(p.n.id)}<div class="here">agent here</div>{/if}
           {:else}
