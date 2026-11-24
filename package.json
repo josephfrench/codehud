@@ -1,0 +1,22 @@
+{
+  "name": "codehud",
+  "private": true,
+  "version": "0.0.1",
+  "description": "A heads-up display for the system you're building with an AI coding agent.",
+  "type": "module",
+  "packageManager": "pnpm@12.23.0",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @codehud/server --filter @codehud/hud dev",
+    "build": "pnpm --filter @codehud/hud build",
+    "start": "node packages/server/src/index.ts",
+    "demo": "node scripts/demo.ts",
+    "mcp": "node packages/mcp/src/index.ts",
+    "crawl": "node packages/crawler/src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": ["packages/schema/src", "packages/server/src", "packages/mcp/src", "packages/crawler/src", "scripts"]
+}
