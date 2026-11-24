@@ -1,0 +1,20 @@
+{
+  "name": "@codehud/crawler",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Turns a JS/TS web-app repository into a codehud SystemMap (heuristic v0).",
+  "type": "module",
+  "bin": {
+    "codehud-crawl": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "crawl": "node src/cli.ts",
+    "self": "node src/cli.ts ../.. --out examples/self.system.json"
+  },
+  "dependencies": {
+    "@codehud/schema": "workspace:*"
+  }
+}

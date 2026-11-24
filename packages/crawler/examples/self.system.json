@@ -1,0 +1,1344 @@
+{
+  "version": 1,
+  "name": "codehud",
+  "description": "Heuristic crawl (vite); 33 source files, 37 nodes, 72 edges.",
+  "root": "C:/Users/josep/IdeaProjects/codehud",
+  "generatedAt": "2026-11-24T20:44:31.075Z",
+  "generator": {
+    "name": "@codehud/crawler",
+    "version": "0.0.1"
+  },
+  "layers": [
+    {
+      "id": "client",
+      "label": "Client",
+      "description": "Pages, components, browser state"
+    },
+    {
+      "id": "edge",
+      "label": "Edge",
+      "description": "Middleware, auth guards, routing, CDN"
+    },
+    {
+      "id": "api",
+      "label": "API",
+      "description": "HTTP / RPC endpoints, server actions"
+    },
+    {
+      "id": "domain",
+      "label": "Domain",
+      "description": "Business logic, services, jobs"
+    },
+    {
+      "id": "persistence",
+      "label": "Persistence",
+      "description": "Databases, tables, caches, buckets"
+    },
+    {
+      "id": "external",
+      "label": "External",
+      "description": "Third-party systems"
+    }
+  ],
+  "lanes": [],
+  "nodes": [
+    {
+      "id": "components:packages/hud/src/components/",
+      "label": "components",
+      "kind": "component",
+      "layer": "client",
+      "summary": "7 components",
+      "files": [
+        {
+          "path": "packages/hud/src/components/",
+          "role": "source"
+        }
+      ],
+      "tags": [
+        "group"
+      ]
+    },
+    {
+      "id": "module:packages/hud/src/",
+      "label": "packages/hud",
+      "kind": "module",
+      "layer": "client",
+      "summary": "2 modules",
+      "files": [
+        {
+          "path": "packages/hud/src/",
+          "role": "source"
+        }
+      ],
+      "tags": [
+        "group"
+      ]
+    },
+    {
+      "id": "module:packages/hud/src/lib/",
+      "label": "packages/hud/src/lib",
+      "kind": "module",
+      "layer": "client",
+      "summary": "4 modules",
+      "files": [
+        {
+          "path": "packages/hud/src/lib/",
+          "role": "source"
+        }
+      ],
+      "tags": [
+        "group"
+      ]
+    },
+    {
+      "id": "module:templates/hooks/presence.mjs",
+      "label": "hooks/presence",
+      "kind": "module",
+      "layer": "client",
+      "summary": "Claude Code PostToolUse hook: passive agent presence for codehud.",
+      "files": [
+        {
+          "path": "templates/hooks/presence.mjs",
+          "role": "source"
+        }
+      ]
+    },
+    {
+      "id": "config:root",
+      "label": "config",
+      "kind": "config",
+      "layer": "edge",
+      "summary": "svelte.config.js, vite.config.ts, package.json, tsconfig.json, pnpm-workspace.yaml, +1 more",
+      "files": [
+        {
+          "path": "packages/hud/svelte.config.js",
+          "role": "config"
+        },
+        {
+          "path": "packages/hud/vite.config.ts",
+          "role": "config"
+        },
+        {
+          "path": "package.json",
+          "role": "config"
+        },
+        {
+          "path": "packages/crawler/package.json",
+          "role": "config"
+        },
+        {
+          "path": "packages/hud/package.json",
+          "role": "config"
+        },
+        {
+          "path": "packages/hud/tsconfig.json",
+          "role": "config"
+        },
+        {
+          "path": "packages/mcp/package.json",
+          "role": "config"
+        },
+        {
+          "path": "packages/schema/package.json",
+          "role": "config"
+        },
+        {
+          "path": "packages/server/package.json",
+          "role": "config"
+        },
+        {
+          "path": "pnpm-workspace.yaml",
+          "role": "config"
+        },
+        {
+          "path": "tsconfig.base.json",
+          "role": "config"
+        },
+        {
+          "path": "tsconfig.json",
+          "role": "config"
+        }
+      ],
+      "tags": [
+        "config"
+      ]
+    },
+    {
+      "id": "module:packages/server/src/index.ts",
+      "label": "server/index",
+      "kind": "module",
+      "layer": "api",
+      "summary": "codehud local server.",
+      "files": [
+        {
+          "path": "packages/server/src/index.ts",
+          "role": "source"
+        }
+      ]
+    },
+    {
+      "id": "module:packages/crawler/src/",
+      "label": "packages/crawler",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "12 modules",
+      "files": [
+        {
+          "path": "packages/crawler/src/",
+          "role": "source"
+        }
+      ],
+      "tags": [
+        "group"
+      ]
+    },
+    {
+      "id": "module:packages/mcp/src/index.ts",
+      "label": "mcp/index",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "codehud MCP bridge (stdio).",
+      "files": [
+        {
+          "path": "packages/mcp/src/index.ts",
+          "role": "source"
+        }
+      ]
+    },
+    {
+      "id": "module:packages/schema/src/",
+      "label": "packages/schema",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "2 modules",
+      "files": [
+        {
+          "path": "packages/schema/src/",
+          "role": "source"
+        }
+      ],
+      "tags": [
+        "group"
+      ]
+    },
+    {
+      "id": "module:scripts/demo.ts",
+      "label": "scripts/demo",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Simulates a coding agent driving the HUD, without an MCP client: 1.",
+      "files": [
+        {
+          "path": "scripts/demo.ts",
+          "role": "source"
+        }
+      ]
+    },
+    {
+      "id": "component:packages/hud/src/components/Activity.svelte",
+      "label": "Activity",
+      "kind": "component",
+      "layer": "client",
+      "summary": "Svelte component",
+      "files": [
+        {
+          "path": "packages/hud/src/components/Activity.svelte",
+          "role": "source"
+        }
+      ],
+      "parent": "components:packages/hud/src/components/"
+    },
+    {
+      "id": "component:packages/hud/src/components/Breadcrumbs.svelte",
+      "label": "Breadcrumbs",
+      "kind": "component",
+      "layer": "client",
+      "summary": "Svelte component",
+      "files": [
+        {
+          "path": "packages/hud/src/components/Breadcrumbs.svelte",
+          "role": "source"
+        }
+      ],
+      "parent": "components:packages/hud/src/components/"
+    },
+    {
+      "id": "component:packages/hud/src/components/DetailPanel.svelte",
+      "label": "DetailPanel",
+      "kind": "component",
+      "layer": "client",
+      "summary": "Svelte component",
+      "files": [
+        {
+          "path": "packages/hud/src/components/DetailPanel.svelte",
+          "role": "source"
+        }
+      ],
+      "parent": "components:packages/hud/src/components/"
+    },
+    {
+      "id": "component:packages/hud/src/components/Hud.svelte",
+      "label": "Hud",
+      "kind": "component",
+      "layer": "client",
+      "summary": "Svelte component",
+      "files": [
+        {
+          "path": "packages/hud/src/components/Hud.svelte",
+          "role": "source"
+        }
+      ],
+      "parent": "components:packages/hud/src/components/"
+    },
+    {
+      "id": "component:packages/hud/src/components/Overlays.svelte",
+      "label": "Overlays",
+      "kind": "component",
+      "layer": "client",
+      "summary": "Svelte component",
+      "files": [
+        {
+          "path": "packages/hud/src/components/Overlays.svelte",
+          "role": "source"
+        }
+      ],
+      "parent": "components:packages/hud/src/components/"
+    },
+    {
+      "id": "component:packages/hud/src/components/QuestionPanel.svelte",
+      "label": "QuestionPanel",
+      "kind": "component",
+      "layer": "client",
+      "summary": "Svelte component",
+      "files": [
+        {
+          "path": "packages/hud/src/components/QuestionPanel.svelte",
+          "role": "source"
+        }
+      ],
+      "parent": "components:packages/hud/src/components/"
+    },
+    {
+      "id": "component:packages/hud/src/components/TopBar.svelte",
+      "label": "TopBar",
+      "kind": "component",
+      "layer": "client",
+      "summary": "Svelte component",
+      "files": [
+        {
+          "path": "packages/hud/src/components/TopBar.svelte",
+          "role": "source"
+        }
+      ],
+      "parent": "components:packages/hud/src/components/"
+    },
+    {
+      "id": "module:packages/hud/src/App.svelte",
+      "label": "App",
+      "kind": "module",
+      "layer": "client",
+      "files": [
+        {
+          "path": "packages/hud/src/App.svelte",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/hud/src/"
+    },
+    {
+      "id": "module:packages/hud/src/lib/api.ts",
+      "label": "lib/api",
+      "kind": "module",
+      "layer": "client",
+      "summary": "Same-origin API calls.",
+      "files": [
+        {
+          "path": "packages/hud/src/lib/api.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/hud/src/lib/"
+    },
+    {
+      "id": "module:packages/hud/src/lib/layout.ts",
+      "label": "lib/layout",
+      "kind": "module",
+      "layer": "client",
+      "summary": "Deterministic layer x lane grid layout for one zoom level.",
+      "files": [
+        {
+          "path": "packages/hud/src/lib/layout.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/hud/src/lib/"
+    },
+    {
+      "id": "module:packages/hud/src/lib/md.ts",
+      "label": "lib/md",
+      "kind": "module",
+      "layer": "client",
+      "files": [
+        {
+          "path": "packages/hud/src/lib/md.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/hud/src/lib/"
+    },
+    {
+      "id": "module:packages/hud/src/lib/state.svelte.ts",
+      "label": "lib/state.svelte",
+      "kind": "module",
+      "layer": "client",
+      "summary": "Single reactive store for the HUD (Svelte 5 runes in a class).",
+      "files": [
+        {
+          "path": "packages/hud/src/lib/state.svelte.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/hud/src/lib/"
+    },
+    {
+      "id": "module:packages/hud/src/main.ts",
+      "label": "hud/main",
+      "kind": "module",
+      "layer": "client",
+      "files": [
+        {
+          "path": "packages/hud/src/main.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/hud/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/classify.ts",
+      "label": "classify",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "`src/` root of the file's package (root-relative, trailing slash) or the package dir itself.",
+      "files": [
+        {
+          "path": "packages/crawler/src/classify.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/cli.ts",
+      "label": "cli",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "node packages/crawler/src/cli.ts <repoRoot> [--out file.json] [--name x] [--max-children 12] [--max-lanes 8] [--no-tests] [--no-low-confi…",
+      "files": [
+        {
+          "path": "packages/crawler/src/cli.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/edges.ts",
+      "label": "edges",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Match a concrete (or templated) URL path against route patterns; most specific wins.",
+      "files": [
+        {
+          "path": "packages/crawler/src/edges.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/env-externals.ts",
+      "label": "env-externals",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Third-party systems that are not an npm dependency but are configured through environment variables: `env.CRM_URL` + `env.CRM_API_KEY` me…",
+      "files": [
+        {
+          "path": "packages/crawler/src/env-externals.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/framework.ts",
+      "label": "framework",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Expand `packages/*` style globs (one wildcard level supported) to directories with a package.json.",
+      "files": [
+        {
+          "path": "packages/crawler/src/framework.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/fs.ts",
+      "label": "fs",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Depth-first, sorted walk.",
+      "files": [
+        {
+          "path": "packages/crawler/src/fs.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/imports.ts",
+      "label": "imports",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Resolve a relative or alias specifier to a repo file (root-relative).",
+      "files": [
+        {
+          "path": "packages/crawler/src/imports.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/index.ts",
+      "label": "crawler/index",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Pipeline (all deterministic, no third-party deps): 1.",
+      "files": [
+        {
+          "path": "packages/crawler/src/index.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/lanes.ts",
+      "label": "lanes",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Path segments that describe code organisation rather than a feature.",
+      "files": [
+        {
+          "path": "packages/crawler/src/lanes.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/persistence.ts",
+      "label": "persistence",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Minimal TOML reader for wrangler.toml arrays-of-tables.",
+      "files": [
+        {
+          "path": "packages/crawler/src/persistence.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/schema-runtime.ts",
+      "label": "schema-runtime",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Runtime access to `validateSystemMap` and `WELL_KNOWN_LAYERS` from @codehud/schema.",
+      "files": [
+        {
+          "path": "packages/crawler/src/schema-runtime.ts",
+          "role": "source"
+        }
+      ],
+      "tags": [
+        "schema"
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/crawler/src/types.ts",
+      "label": "types",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "A node before grouping; `group` keys decide the parent, `laneHint` feeds lane resolution.",
+      "files": [
+        {
+          "path": "packages/crawler/src/types.ts",
+          "role": "source"
+        }
+      ],
+      "parent": "module:packages/crawler/src/"
+    },
+    {
+      "id": "module:packages/schema/src/index.ts",
+      "label": "schema/index",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "The System Map: a generic, framework-agnostic description of a software system that the HUD can render.",
+      "files": [
+        {
+          "path": "packages/schema/src/index.ts",
+          "role": "source"
+        }
+      ],
+      "tags": [
+        "schema"
+      ],
+      "parent": "module:packages/schema/src/"
+    },
+    {
+      "id": "module:packages/schema/src/protocol.ts",
+      "label": "protocol",
+      "kind": "module",
+      "layer": "domain",
+      "summary": "Wire protocol between agents (via the MCP bridge), the local HUD server, and browsers.",
+      "files": [
+        {
+          "path": "packages/schema/src/protocol.ts",
+          "role": "source"
+        }
+      ],
+      "tags": [
+        "schema"
+      ],
+      "parent": "module:packages/schema/src/"
+    }
+  ],
+  "edges": [
+    {
+      "id": "imports:component:packages/hud/src/components/Activity.svelte->module:packages/hud/src/lib/md.ts",
+      "from": "component:packages/hud/src/components/Activity.svelte",
+      "to": "module:packages/hud/src/lib/md.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/Activity.svelte->module:packages/hud/src/lib/state.svelte.ts",
+      "from": "component:packages/hud/src/components/Activity.svelte",
+      "to": "module:packages/hud/src/lib/state.svelte.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/Breadcrumbs.svelte->module:packages/hud/src/lib/state.svelte.ts",
+      "from": "component:packages/hud/src/components/Breadcrumbs.svelte",
+      "to": "module:packages/hud/src/lib/state.svelte.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/DetailPanel.svelte->module:packages/hud/src/lib/layout.ts",
+      "from": "component:packages/hud/src/components/DetailPanel.svelte",
+      "to": "module:packages/hud/src/lib/layout.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/DetailPanel.svelte->module:packages/hud/src/lib/md.ts",
+      "from": "component:packages/hud/src/components/DetailPanel.svelte",
+      "to": "module:packages/hud/src/lib/md.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/DetailPanel.svelte->module:packages/hud/src/lib/state.svelte.ts",
+      "from": "component:packages/hud/src/components/DetailPanel.svelte",
+      "to": "module:packages/hud/src/lib/state.svelte.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/Hud.svelte->module:packages/hud/src/lib/layout.ts",
+      "from": "component:packages/hud/src/components/Hud.svelte",
+      "to": "module:packages/hud/src/lib/layout.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/Hud.svelte->module:packages/hud/src/lib/state.svelte.ts",
+      "from": "component:packages/hud/src/components/Hud.svelte",
+      "to": "module:packages/hud/src/lib/state.svelte.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/Overlays.svelte->module:packages/hud/src/lib/state.svelte.ts",
+      "from": "component:packages/hud/src/components/Overlays.svelte",
+      "to": "module:packages/hud/src/lib/state.svelte.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/QuestionPanel.svelte->module:packages/hud/src/lib/api.ts",
+      "from": "component:packages/hud/src/components/QuestionPanel.svelte",
+      "to": "module:packages/hud/src/lib/api.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/QuestionPanel.svelte->module:packages/hud/src/lib/md.ts",
+      "from": "component:packages/hud/src/components/QuestionPanel.svelte",
+      "to": "module:packages/hud/src/lib/md.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/QuestionPanel.svelte->module:packages/hud/src/lib/state.svelte.ts",
+      "from": "component:packages/hud/src/components/QuestionPanel.svelte",
+      "to": "module:packages/hud/src/lib/state.svelte.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/QuestionPanel.svelte->module:packages/schema/src/protocol.ts",
+      "from": "component:packages/hud/src/components/QuestionPanel.svelte",
+      "to": "module:packages/schema/src/protocol.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/TopBar.svelte->module:packages/hud/src/lib/layout.ts",
+      "from": "component:packages/hud/src/components/TopBar.svelte",
+      "to": "module:packages/hud/src/lib/layout.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/TopBar.svelte->module:packages/hud/src/lib/md.ts",
+      "from": "component:packages/hud/src/components/TopBar.svelte",
+      "to": "module:packages/hud/src/lib/md.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:component:packages/hud/src/components/TopBar.svelte->module:packages/hud/src/lib/state.svelte.ts",
+      "from": "component:packages/hud/src/components/TopBar.svelte",
+      "to": "module:packages/hud/src/lib/state.svelte.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/classify.ts->module:packages/crawler/src/fs.ts",
+      "from": "module:packages/crawler/src/classify.ts",
+      "to": "module:packages/crawler/src/fs.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/classify.ts->module:packages/crawler/src/lanes.ts",
+      "from": "module:packages/crawler/src/classify.ts",
+      "to": "module:packages/crawler/src/lanes.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/classify.ts->module:packages/crawler/src/types.ts",
+      "from": "module:packages/crawler/src/classify.ts",
+      "to": "module:packages/crawler/src/types.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/classify.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/crawler/src/classify.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/cli.ts->module:packages/crawler/src/index.ts",
+      "from": "module:packages/crawler/src/cli.ts",
+      "to": "module:packages/crawler/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/edges.ts->module:packages/crawler/src/env-externals.ts",
+      "from": "module:packages/crawler/src/edges.ts",
+      "to": "module:packages/crawler/src/env-externals.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/edges.ts->module:packages/crawler/src/framework.ts",
+      "from": "module:packages/crawler/src/edges.ts",
+      "to": "module:packages/crawler/src/framework.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/edges.ts->module:packages/crawler/src/fs.ts",
+      "from": "module:packages/crawler/src/edges.ts",
+      "to": "module:packages/crawler/src/fs.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/edges.ts->module:packages/crawler/src/lanes.ts",
+      "from": "module:packages/crawler/src/edges.ts",
+      "to": "module:packages/crawler/src/lanes.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/edges.ts->module:packages/crawler/src/persistence.ts",
+      "from": "module:packages/crawler/src/edges.ts",
+      "to": "module:packages/crawler/src/persistence.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/edges.ts->module:packages/crawler/src/types.ts",
+      "from": "module:packages/crawler/src/edges.ts",
+      "to": "module:packages/crawler/src/types.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/edges.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/crawler/src/edges.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/env-externals.ts->module:packages/crawler/src/framework.ts",
+      "from": "module:packages/crawler/src/env-externals.ts",
+      "to": "module:packages/crawler/src/framework.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/env-externals.ts->module:packages/crawler/src/fs.ts",
+      "from": "module:packages/crawler/src/env-externals.ts",
+      "to": "module:packages/crawler/src/fs.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/env-externals.ts->module:packages/crawler/src/types.ts",
+      "from": "module:packages/crawler/src/env-externals.ts",
+      "to": "module:packages/crawler/src/types.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/framework.ts->module:packages/crawler/src/fs.ts",
+      "from": "module:packages/crawler/src/framework.ts",
+      "to": "module:packages/crawler/src/fs.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/framework.ts->module:packages/crawler/src/types.ts",
+      "from": "module:packages/crawler/src/framework.ts",
+      "to": "module:packages/crawler/src/types.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/fs.ts->module:packages/crawler/src/types.ts",
+      "from": "module:packages/crawler/src/fs.ts",
+      "to": "module:packages/crawler/src/types.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/imports.ts->module:packages/crawler/src/framework.ts",
+      "from": "module:packages/crawler/src/imports.ts",
+      "to": "module:packages/crawler/src/framework.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/imports.ts->module:packages/crawler/src/fs.ts",
+      "from": "module:packages/crawler/src/imports.ts",
+      "to": "module:packages/crawler/src/fs.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/imports.ts->module:packages/crawler/src/types.ts",
+      "from": "module:packages/crawler/src/imports.ts",
+      "to": "module:packages/crawler/src/types.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/classify.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/classify.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/edges.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/edges.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/env-externals.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/env-externals.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/framework.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/framework.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/fs.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/fs.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/imports.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/imports.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/lanes.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/lanes.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/persistence.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/persistence.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/schema-runtime.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/schema-runtime.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/crawler/src/types.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/crawler/src/types.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/index.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/crawler/src/index.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/lanes.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/crawler/src/lanes.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/persistence.ts->module:packages/crawler/src/fs.ts",
+      "from": "module:packages/crawler/src/persistence.ts",
+      "to": "module:packages/crawler/src/fs.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/persistence.ts->module:packages/crawler/src/types.ts",
+      "from": "module:packages/crawler/src/persistence.ts",
+      "to": "module:packages/crawler/src/types.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/schema-runtime.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/crawler/src/schema-runtime.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/crawler/src/types.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/crawler/src/types.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/hud/src/App.svelte->module:packages/hud/src/lib/state.svelte.ts",
+      "from": "module:packages/hud/src/App.svelte",
+      "to": "module:packages/hud/src/lib/state.svelte.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/hud/src/lib/layout.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/hud/src/lib/layout.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/hud/src/lib/state.svelte.ts->module:packages/hud/src/lib/api.ts",
+      "from": "module:packages/hud/src/lib/state.svelte.ts",
+      "to": "module:packages/hud/src/lib/api.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/hud/src/lib/state.svelte.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/hud/src/lib/state.svelte.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/hud/src/lib/state.svelte.ts->module:packages/schema/src/protocol.ts",
+      "from": "module:packages/hud/src/lib/state.svelte.ts",
+      "to": "module:packages/schema/src/protocol.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/hud/src/main.ts->module:packages/hud/src/App.svelte",
+      "from": "module:packages/hud/src/main.ts",
+      "to": "module:packages/hud/src/App.svelte",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/mcp/src/index.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/mcp/src/index.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/mcp/src/index.ts->module:packages/schema/src/protocol.ts",
+      "from": "module:packages/mcp/src/index.ts",
+      "to": "module:packages/schema/src/protocol.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/schema/src/protocol.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/schema/src/protocol.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/server/src/index.ts->module:packages/schema/src/index.ts",
+      "from": "module:packages/server/src/index.ts",
+      "to": "module:packages/schema/src/index.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:packages/server/src/index.ts->module:packages/schema/src/protocol.ts",
+      "from": "module:packages/server/src/index.ts",
+      "to": "module:packages/schema/src/protocol.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "imports:module:scripts/demo.ts->module:packages/schema/src/protocol.ts",
+      "from": "module:scripts/demo.ts",
+      "to": "module:packages/schema/src/protocol.ts",
+      "kind": "imports",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "renders:module:packages/hud/src/App.svelte->component:packages/hud/src/components/Activity.svelte",
+      "from": "module:packages/hud/src/App.svelte",
+      "to": "component:packages/hud/src/components/Activity.svelte",
+      "kind": "renders",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "renders:module:packages/hud/src/App.svelte->component:packages/hud/src/components/Breadcrumbs.svelte",
+      "from": "module:packages/hud/src/App.svelte",
+      "to": "component:packages/hud/src/components/Breadcrumbs.svelte",
+      "kind": "renders",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "renders:module:packages/hud/src/App.svelte->component:packages/hud/src/components/DetailPanel.svelte",
+      "from": "module:packages/hud/src/App.svelte",
+      "to": "component:packages/hud/src/components/DetailPanel.svelte",
+      "kind": "renders",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "renders:module:packages/hud/src/App.svelte->component:packages/hud/src/components/Hud.svelte",
+      "from": "module:packages/hud/src/App.svelte",
+      "to": "component:packages/hud/src/components/Hud.svelte",
+      "kind": "renders",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "renders:module:packages/hud/src/App.svelte->component:packages/hud/src/components/Overlays.svelte",
+      "from": "module:packages/hud/src/App.svelte",
+      "to": "component:packages/hud/src/components/Overlays.svelte",
+      "kind": "renders",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "renders:module:packages/hud/src/App.svelte->component:packages/hud/src/components/QuestionPanel.svelte",
+      "from": "module:packages/hud/src/App.svelte",
+      "to": "component:packages/hud/src/components/QuestionPanel.svelte",
+      "kind": "renders",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "renders:module:packages/hud/src/App.svelte->component:packages/hud/src/components/TopBar.svelte",
+      "from": "module:packages/hud/src/App.svelte",
+      "to": "component:packages/hud/src/components/TopBar.svelte",
+      "kind": "renders",
+      "meta": {
+        "via": "import",
+        "confidence": "high"
+      }
+    }
+  ]
+}
