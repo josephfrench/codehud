@@ -1,0 +1,17 @@
+## codehud (system HUD)
+
+This repo has a system map at `codehud/system.json` and the `codehud` MCP server is available. The human
+watches a browser HUD of the system while you work in the terminal. Use it:
+
+- At the start of a task, call `hud_get_map` once so you know the node ids and which files belong to which node.
+- Whenever you move to a different part of the system (reading, editing, testing), call `hud_focus` with the
+  node ids or file paths and a one-line `note` of what you are doing there. Cheap; call it liberally.
+- When you need a decision from the human about the system, call `hud_ask` instead of asking in plain text.
+  Pass the `nodes`/`files` the question is about, a short `context`, a `moreContext` with your reasoning,
+  trade-offs and any snippet or diff, and `options` when the choice is finite. Wait for the answer. If the
+  call times out, call `hud_await` with the question id, or proceed with your best judgement and say so.
+- Post short progress notes with `hud_note` at milestones (tests green, migration written, moving on).
+- If you change the system's shape (new route, table, service, external dependency), update the system map
+  (re-run the crawler or edit `codehud/system.json`) and call `hud_load_map`.
+
+Do not ask questions in the HUD that are not about the system (e.g. "shall I continue?"); keep those in the terminal.

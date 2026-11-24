@@ -1,0 +1,11 @@
+{
+  "name": "@codehud/server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": { "codehud-server": "./src/index.ts" },
+  "scripts": {
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts"
+  }
+}

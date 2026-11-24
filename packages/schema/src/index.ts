@@ -172,7 +172,10 @@ export class MapIndex {
   readonly children = new Map<string, SysNode[]>();
   readonly roots: SysNode[] = [];
 
-  constructor(public readonly map: SystemMap) {
+  readonly map: SystemMap;
+
+  constructor(map: SystemMap) {
+    this.map = map;
     for (const n of map.nodes) this.byId.set(n.id, n);
     for (const n of map.nodes) {
       if (n.parent && this.byId.has(n.parent)) {
@@ -187,6 +190,21 @@ export class MapIndex {
   get(id: string) { return this.byId.get(id); }
   childrenOf(id: string | null) { return id ? (this.children.get(id) ?? []) : this.roots; }
   hasChildren(id: string) { return (this.children.get(id)?.length ?? 0) > 0; }
+
+  /** Effective layer: the node's own, else the nearest ancestor's. */
+  layerOf(n: SysNode): string {
+    if (n.layer) return n.layer;
+    const anc = this.ancestors(n.id);
+    for (let i = anc.length - 1; i >= 0; i--) if (anc[i].layer) return anc[i].layer;
+    return '';
+  }
+  /** Effective lane: the node's own, else the nearest ancestor's. */
+  laneOf(n: SysNode): string | undefined {
+    if (n.lane) return n.lane;
+    const anc = this.ancestors(n.id);
+    for (let i = anc.length - 1; i >= 0; i--) if (anc[i].lane) return anc[i].lane;
+    return undefined;
+  }
 
   /** Ancestor chain root -> ... -> parent (excludes the node itself). */
   ancestors(id: string): SysNode[] {

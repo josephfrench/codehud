@@ -17,6 +17,8 @@ export interface FocusRequest {
   zoom?: boolean;
   /** Which agent session this came from. */
   session?: string;
+  /** 'agent' = explicit tool call (may zoom); 'hook' = passive presence from tool-use hooks (never zooms). */
+  source?: 'agent' | 'hook';
 }
 
 export interface QuestionOption {
@@ -87,8 +89,12 @@ export type ServerEvent =
 
 /** Written by the server to ~/.codehud/server.json so local clients (MCP bridge, CLI) can find it. */
 export interface ServerInfo {
+  version: 1;
   port: number;
   host: string;
+  /** Base URL, e.g. http://127.0.0.1:4777 */
+  url: string;
+  /** Bearer token for local clients (bridge, hooks, CLI). Never put it in a query string. */
   token: string;
   pid: number;
   startedAt: string;
