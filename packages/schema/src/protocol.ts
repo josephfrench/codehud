@@ -25,6 +25,12 @@ export interface QuestionOption {
   id: string;
   label: string;
   description?: string;
+  /** Nodes this option would touch; the HUD previews them when the human hovers/selects the option. */
+  nodes?: string[];
+  /** File paths this option would touch; resolved to nodes server-side. */
+  files?: string[];
+  /** Filled by the server: nodes + resolved files. */
+  resolvedNodes?: string[];
 }
 
 export interface QuestionInput {

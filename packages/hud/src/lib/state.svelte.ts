@@ -33,6 +33,8 @@ class HudState {
   questionOpen = $state(true);
   /** screen point the specifics modal grows out of */
   blowoutFrom = $state.raw<{ x: number; y: number } | null>(null);
+  /** option index being previewed in the dialogue (null = none) */
+  previewOption = $state<number | null>(null);
   theme = $state<'dark' | 'light'>((() => { try { return (localStorage.getItem('codehud-theme') as 'dark' | 'light') || 'dark'; } catch { return 'dark'; } })());
   toasts = $state<Toast[]>([]);
   /** bump to ask the canvas to fit these ids (null = whole level) */
@@ -158,6 +160,7 @@ class HudState {
       }
       case 'answer': {
         this.questions = this.questions.map((q) => (q.id === ev.question.id ? ev.question : q));
+        this.previewOption = null;
         if (this.activeQuestionId === ev.question.id) this.activeQuestionId = this.pending[0]?.id ?? null;
         break;
       }

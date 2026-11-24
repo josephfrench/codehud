@@ -313,6 +313,7 @@ async function handleApi(req: Req, res: Res, url: URL) {
       status: 'pending',
       resolvedNodes: resolveNodes(input.nodes, input.files),
     };
+    q.options = q.options?.map((o) => ({ ...o, resolvedNodes: resolveNodes(o.nodes, o.files?.map(relToRoot)) }));
     state.questions.set(q.id, q);
     touchSession(q.session, 'waiting');
     broadcast({ type: 'question', question: q });

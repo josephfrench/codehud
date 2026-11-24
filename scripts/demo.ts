@@ -66,9 +66,9 @@ const q: Question = await api('POST', '/api/questions', {
   nodes: ['function:handle-webhook', 'table:subscriptions', 'table:invoices', 'store:kv'],
   files: [{ path: 'src/lib/server/billing/webhook.ts' }],
   options: [
-    { id: 'd1', label: 'New stripe_events table in D1', description: 'Strongly consistent, transactional with the upserts. Adds a migration.' },
-    { id: 'kv', label: 'KV key per event id', description: 'No migration, but eventually consistent.' },
-    { id: 'ts', label: 'Timestamp check on subscriptions', description: 'Smallest change; does not cover invoices.' },
+    { id: 'd1', label: 'New stripe_events table in D1', description: 'Strongly consistent, transactional with the upserts. Adds a migration.', nodes: ['store:d1', 'function:handle-webhook'], files: ['drizzle/schema.ts'] },
+    { id: 'kv', label: 'KV key per event id', description: 'No migration, but eventually consistent.', nodes: ['store:kv', 'function:handle-webhook'] },
+    { id: 'ts', label: 'Timestamp check on subscriptions', description: 'Smallest change; does not cover invoices.', nodes: ['table:subscriptions', 'function:sync-subscription'] },
   ],
 });
 console.log('asked', q.id, '- answer it in the HUD');

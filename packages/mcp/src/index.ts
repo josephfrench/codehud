@@ -225,7 +225,7 @@ server.registerTool('hud_ask', {
     'The HUD zooms to the referenced nodes/files, highlights them, and shows your question with context.',
     'Provide: the question (1-2 sentences); context (why you ask / what you are about to do, 1-3 short lines, always visible);',
     'moreContext (markdown the human can expand: your reasoning, trade-offs, relevant snippets or diffs);',
-    'nodes and/or files the question is about; and options when there is a finite set of choices (the human can still type a free-text answer).',
+    'nodes and/or files the question is about; and options when there is a finite set of choices (the human can still type a free-text answer); give each option the nodes/files it would touch so the HUD can preview that path.',
     'The call waits up to timeoutSeconds (default 100) for the human. If it returns "pending", call hud_await with the question id to keep waiting (repeat a few times before giving up), or proceed with your best judgement and say what you assumed.',
   ].join(' '),
   inputSchema: {
@@ -234,7 +234,7 @@ server.registerTool('hud_ask', {
     moreContext: z.string().max(20000).optional().describe('Shown when the human clicks "show me more". Markdown.'),
     nodes: z.array(z.string()).optional(),
     files: z.array(fileRef).optional(),
-    options: z.array(z.object({ id: z.string(), label: z.string().max(80), description: z.string().max(300).optional() })).max(6).optional(),
+    options: z.array(z.object({ id: z.string(), label: z.string().max(80), description: z.string().max(300).optional(), nodes: z.array(z.string()).optional().describe('Node ids this option would touch'), files: z.array(z.string()).optional().describe('Files this option would touch') })).max(6).optional(),
     allowFreeText: z.boolean().optional(),
     timeoutSeconds: z.number().min(5).max(3600).optional().describe('Default 100'),
   },

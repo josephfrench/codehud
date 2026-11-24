@@ -14,7 +14,8 @@
     return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
   }
   function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') { if (typing(e)) (e.target as HTMLElement).blur(); else if (hud.selected) hud.selected = null; return; }
+    if (e.key === 'Escape') { if (typing(e)) (e.target as HTMLElement).blur(); else if (hud.selected) hud.selected = null; else if (hud.previewOption !== null) hud.previewOption = null; return; }
+    if (e.key === 'Enter' && !typing(e) && hud.previewOption !== null) { dialogue?.confirm(); e.preventDefault(); return; }
     if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
     if (/^[1-9]$/.test(e.key)) { dialogue?.pick(Number(e.key) - 1); e.preventDefault(); return; }
     if (e.key === 'c') { hud.questionOpen = !hud.questionOpen; return; }
