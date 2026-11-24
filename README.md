@@ -27,8 +27,8 @@ packages/hud       the browser UI (Vite + Svelte 5 + SVG)
 packages/mcp       MCP stdio server the agent talks to; forwards to the local server
 packages/crawler   turns a repo into a SystemMap (web-app heuristics first)
 examples/          sample system maps
-docs/              design brief + research notes
-templates/         CLAUDE.md / agent instruction snippets for repos that adopt codehud
+docs/              design brief, research notes, roadmap
+templates/         CLAUDE.md snippet and Claude Code hooks for repos that adopt codehud
 ```
 
 ## Quick start
@@ -36,11 +36,19 @@ templates/         CLAUDE.md / agent instruction snippets for repos that adopt c
 ```sh
 pnpm install
 pnpm build                 # builds the HUD into packages/hud/dist
-pnpm start                 # http://127.0.0.1:4777  (loads examples/sample-webapp.system.json)
+pnpm start                 # prints http://127.0.0.1:4777/#t=<token>  (loads examples/sample-webapp.system.json)
 pnpm demo                  # in another terminal: simulates an agent focusing + asking a question
 ```
 
-Development with hot reload: `pnpm dev` (server on 4777, Vite on 5173 proxying `/api`).
+Open the printed URL. The `#t=` fragment signs the browser in once and is then stripped. Hot reload for UI
+work: `pnpm dev` (server on 4777, Vite on 5173 proxying `/api` with the token injected).
+
+Crawl a repo and load it:
+
+```sh
+pnpm crawl C:/path/to/repo --out C:/path/to/repo/codehud/system.json
+pnpm start --map C:/path/to/repo/codehud/system.json
+```
 
 ### Hooking up Claude Code
 
@@ -48,10 +56,44 @@ Development with hot reload: `pnpm dev` (server on 4777, Vite on 5173 proxying `
 claude mcp add codehud -- node C:/path/to/codehud/packages/mcp/src/index.ts
 ```
 
-Then add the snippet in `templates/CLAUDE.md.snippet` to the repo's `CLAUDE.md` so the agent prefers
-`hud_ask` over plain text questions and calls `hud_focus` as it moves through the system.
+Then add `templates/CLAUDE.md.snippet` to the repo's `CLAUDE.md` so the agent prefers `hud_ask` over
+plain-text questions and calls `hud_focus` as it moves through the system. For passive presence (the blue
+dot follows every file the agent reads or edits, without the model doing anything), register
+`templates/hooks/presence.mjs` as a `PostToolUse` hook; the file header shows the settings snippet.
+
+MCP tools: `hud_get_map`, `hud_find_nodes`, `hud_focus`, `hud_note`, `hud_ask`, `hud_await`, `hud_load_map`.
+`hud_ask` waits up to 100 s per call (Claude Code backgrounds longer MCP calls) and returns a question id
+the agent can `hud_await` on; the bridge sends MCP progress notifications while waiting and cancels the
+question if the agent cancels the call.
+
+## Using the HUD
+
+| Key | Action |
+| --- | --- |
+| `↵` / double-click | open the selected node (its children) |
+| `Esc` / `↑` | deselect, then zoom out to the parent |
+| `←` `→` | swipe between sibling nodes, or between swim lanes at the top level |
+| `1`…`9` | answer the pending question with that option |
+| `f` | toggle follow-the-agent / free roam |
+| `/` | jump to a node by name |
+| `i` `a` `t` `?` | toggle import edges, activity trail, theme, help |
+
+Amber means something needs you. Blue is where the agent is. A dashed amber border means a child inside
+needs you. Edges between hidden children are lifted to their visible parents with a count. Layout is
+deterministic: the same map at the same zoom level always looks the same.
+
+## Security posture (proof of concept)
+
+Loopback bind with an exact Host allowlist; random per-run bearer token in `~/.codehud/server.json` for
+local clients; the browser receives the token in the URL fragment and exchanges it for a separate session
+cookie (`HttpOnly`, `SameSite=Strict`); cookie-authenticated requests must present an exact-match `Origin`;
+JSON content type required on writes; no CORS headers; every `/api/*` route except `/api/health` requires
+auth, GETs and SSE included; CSP on the page; markdown from the agent is sanitised with DOMPurify; tool
+results are framed as untrusted data. The crawler only reads and parses files and never executes repo
+code. Details and the remaining backlog: `docs/research/security.md`.
 
 ## Status
 
-Proof of concept. See `docs/` for the design brief and research notes on crawling, interaction patterns,
-the terminal-to-browser connection, and security.
+Proof of concept, 2026-11-24. Works end to end with the sample map and the demo script. `docs/roadmap.md`
+lists what comes next; the research behind it is in `docs/research/` (crawling, interface patterns,
+terminal-to-browser connection, security) and the concepting prompt is in `docs/design-brief.md`.
