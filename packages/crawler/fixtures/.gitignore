@@ -1,0 +1,5 @@
+# Fixture repos are test data: their .codehud overlays are part of the test, so re-include them here.
+!.codehud/
+!**/.codehud/
+# written only if the booby-trap fixture is ever executed (the guard test asserts it is not)
+EXECUTED

@@ -1,0 +1,1 @@
+{"name":"serverless-aws","private":true,"dependencies":{"@aws-sdk/client-dynamodb":"^3.600.0","@aws-sdk/lib-dynamodb":"^3.600.0","@aws-sdk/client-sqs":"^3.600.0"},"devDependencies":{"serverless":"^3.38.0"}}

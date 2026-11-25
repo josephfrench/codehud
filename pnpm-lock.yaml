@@ -216,6 +216,9 @@ importers:
       '@codehud/schema':
         specifier: workspace:*
         version: link:../schema
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
 
   packages/hud:
     dependencies:

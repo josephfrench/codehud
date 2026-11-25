@@ -1,0 +1,20 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongo
+      - redis
+      - rabbit
+  mongo:
+    image: mongo:7
+  redis:
+    image: redis:7-alpine
+  rabbit:
+    image: rabbitmq:3-management
+  proxy:
+    image: nginx:1.27
+    depends_on:
+      web:
+        condition: service_started

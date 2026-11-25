@@ -1,0 +1,1 @@
+{"name":"booby-trap","private":true,"main":"trap.js","scripts":{"postinstall":"node trap.js"},"dependencies":{"express":"^4.0.0"}}
