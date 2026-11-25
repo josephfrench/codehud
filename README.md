@@ -68,19 +68,31 @@ question if the agent cancels the call.
 
 ## Using the HUD
 
-| Key | Action |
-| --- | --- |
-| `↵` / double-click | open the selected node (its children) |
-| `Esc` / `↑` | deselect, then zoom out to the parent |
-| `←` `→` | swipe between sibling nodes, or between swim lanes at the top level |
-| `1`…`9` | answer the pending question with that option |
-| `f` | toggle follow-the-agent / free roam |
-| `/` | jump to a node by name |
-| `i` `a` `t` `?` | toggle import edges, activity trail, theme, help |
+Three views, switched from the top bar or with `m` (map) and `d` (docs):
 
-Amber means something needs you. Blue is where the agent is. A dashed amber border means a child inside
-needs you. Edges between hidden children are lifted to their visible parents with a count. Layout is
-deterministic: the same map at the same zoom level always looks the same.
+- **Play** (default) is a third-person scene of the part of the system the agent is in: the focal
+  resources stand centre stage on a 3D floor as animated sprites, callers behind, callees in front, a
+  fainter second ring further out, and connection beams on the floor. The agent is a character at the
+  bottom with a dialogue box. When it asks something, each option previews the path it would take on the
+  stage; confirm to send.
+- **Map** is the whole system at the current level, as the original layer × lane grid or, with `g`, the
+  same layout on the 3D floor. Right-click or triple-click opens a node's children; breadcrumbs go back up.
+- **Docs** is the project's files under the map root with markdown preview and code view.
+
+| Input | Action |
+| --- | --- |
+| click · double-click · triple/right-click | centre the camera · specifics card · focus (play) or open (map) |
+| drag · right-drag · wheel | pan · orbit · zoom |
+| `W` `A` `S` `D` · `Q` `E` · `R` `F` · `0` | steer · orbit · tilt · reset the camera |
+| `Tab` / `↵` / `X` | target the next resource / its specifics / focus it |
+| `1`…`9`, then `↵` | preview an answer's path, then confirm |
+| `←` `→` `↑` `↓` | map: siblings or lanes, up a level, open the selected node |
+| `Esc` | close the card, clear the preview, or go up a level |
+| `c` `l` `i` `t` `?` `/` | collapse the dialogue, log, import edges, theme, help, search |
+| `Shift+F` | follow the agent / free roam |
+
+Amber means something needs you. Blue is where the agent is. Layout is deterministic: the same map at
+the same level always looks the same. `/assets` shows every resource sprite in its four states.
 
 ## Security posture (proof of concept)
 
