@@ -66,7 +66,9 @@ pnpm crawl C:/path/to/repo --out C:/path/to/repo/.codehud/system.json
 pnpm start --map C:/path/to/repo/.codehud/system.json
 ```
 
-A running server also takes a map from the agent (`hud_load_map`) or from `PUT /api/map`. To drive the
+A running server also takes a map from the agent (`hud_load_map`) or from `PUT /api/map`. `POST /api/reset`
+(or the two-click **reset** button in the top bar) clears sessions, questions and history and re-reads the map
+file; `pnpm demo` resets first, so every run starts from the sample as shipped. To drive the
 HUD from a real (simulated) agent process instead of the in-browser demo: `pnpm start:sample` then
 `pnpm demo` in a second terminal.
 

@@ -49,7 +49,8 @@ worked through on 2026-11-25. The first fourteen items are done; what remains is
     the 3D floor). `b` toggles swimlane terrain: a texture and tone per lane as map columns and as ground
     tiles under sprites in play view. Focusing a container (a store) now shows the edges of its children.
     The demo pushes an updated map after the answer (new `stripe_events` table, KV edges, or the
-    timestamp column) so the picture follows the decision.
+    timestamp column) so the picture follows the decision. `POST /api/reset` (top-bar **reset**, two
+    clicks) wipes sessions, questions and history and reloads the map; `pnpm demo` resets on start.
 
 ## Next
 

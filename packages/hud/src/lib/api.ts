@@ -25,4 +25,6 @@ export const api = {
   tree: (path = '') => req<{ path: string; entries: { name: string; dir: boolean; size: number }[] }>('GET', `/api/tree?path=${encodeURIComponent(path)}`),
   fileAll: (path: string) => req<{ path: string; from: number; to: number; total: number; lines: string[] }>('GET', `/api/file?path=${encodeURIComponent(path)}&all=1`),
   focus: (body: { nodes?: string[]; note?: string }) => req('POST', '/api/focus', body),
+  /** wipe sessions, questions and history on the server and re-read the map file it started with */
+  reset: () => req<{ ok: true; nodes: number }>('POST', '/api/reset', { reload: true }),
 };

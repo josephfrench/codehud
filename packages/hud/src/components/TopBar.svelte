@@ -2,6 +2,7 @@
   import { hud } from '../lib/state.svelte.ts';
   import { KIND_GLYPH } from '../lib/layout.ts';
   import { DEMO_MAP_URL, startDemo } from '../lib/demo.ts';
+  import { api } from '../lib/api.ts';
 
   let query = $state('');
   let open = $state(false);
@@ -9,6 +10,16 @@
   const results = $derived(query.trim() ? hud.search(query.trim(), 8) : []);
 
   export function focusSearch() { input?.focus(); input?.select(); }
+
+  // reset is two clicks: the first arms it for a few seconds, the second wipes the server's sessions, questions and history
+  let resetArmed = $state(false);
+  let resetTimer: ReturnType<typeof setTimeout> | undefined;
+  async function resetClick() {
+    if (!resetArmed) { resetArmed = true; clearTimeout(resetTimer); resetTimer = setTimeout(() => (resetArmed = false), 4000); return; }
+    resetArmed = false; clearTimeout(resetTimer);
+    try { await api.reset(); hud.toast({ text: 'Reset: sessions, questions and history cleared.', kind: 'info' }); }
+    catch (e) { hud.toast({ text: `Reset failed: ${(e as Error).message}`, kind: 'info' }); }
+  }
   function go(id: string) {
     hud.goTo([id], { select: true });
     query = ''; open = false; input.blur();
@@ -84,6 +95,9 @@
     <button class="ghost" class:on={hud.showActivity} onclick={() => (hud.showActivity = !hud.showActivity)} title="Toggle activity (l)">log</button>
     <button class="ghost" class:on={hud.showTimeline} onclick={() => (hud.showTimeline = !hud.showTimeline)} title="History: decisions, notes, map loads (h)">history</button>
     <button class="ghost" class:on={hud.terrain} onclick={() => hud.toggleTerrain()} title="Swimlane terrain: a texture per lane under the map and the sprites (b)">terrain</button>
+    {#if !hud.demo}
+      <button class="ghost reset" class:armed={resetArmed} onclick={resetClick} onblur={() => (resetArmed = false)} title="Start over: clear sessions, questions and history on the server and reload its map (click twice)">{resetArmed ? 'sure?' : 'reset'}</button>
+    {/if}
     <button class="ghost" onclick={() => hud.toggleTheme()} title="Toggle theme (t)">{hud.theme === 'dark' ? '☾' : '☀'}</button>
     <button class="ghost" onclick={() => (hud.showHelp = !hud.showHelp)} title="Keyboard help (?)">?</button>
     {#if hud.demo}
@@ -128,6 +142,7 @@
   .mode { font-size: 12px; }
   .mode.follow { color: var(--agent); border-color: color-mix(in srgb, var(--agent) 50%, var(--line-2)); }
   .ghost.on { color: var(--fg); background: var(--bg-3); }
+  .ghost.reset.armed { color: var(--bg); background: var(--accent); }
   .views { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; }
   .views .ghost { padding: 3px 9px; }
   .conn { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-left: 4px; }

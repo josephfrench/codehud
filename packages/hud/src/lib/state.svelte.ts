@@ -209,6 +209,10 @@ class HudState {
   private handle(ev: ServerEvent) {
     switch (ev.type) {
       case 'hello': {
+        // a hello after the first one is a reset: forget what we were looking at
+        this.activeQuestionId = null; this.zoomedQuestions.clear(); this.previewOption = null;
+        for (const t of this.interruptTimers.values()) clearTimeout(t);
+        this.interruptTimers.clear();
         if (ev.map) this.setMap(ev.map);
         this.questions = ev.questions;
         this.sessions = ev.sessions;

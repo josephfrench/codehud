@@ -148,6 +148,31 @@ test('questions: create, long-poll, answer, 409 on double answer', async () => {
   assert.equal((await post(`/api/questions/${q.id}/answer`, { text: 'again' })).status, 409);
 });
 
+test('reset clears sessions, questions and history, reloads or replaces the map, and broadcasts a hello', async () => {
+  await post('/api/sessions', { id: 's-reset', label: 'to be cleared' });
+  const q = await (await post('/api/questions', { question: 'Gone after reset?', context: 'ctx', session: 's-reset' })).json();
+  const sseRes = await api('/api/events', { headers: bearer });
+  const reader = sseRes.body!.getReader();
+  const r = await post('/api/reset', { reload: true });
+  assert.equal(r.status, 200);
+  assert.deepEqual(await (await api('/api/questions', { headers: bearer })).json(), []);
+  assert.equal((await api(`/api/questions/${q.id}`, { headers: bearer })).status, 404);
+  let seen = '';
+  const until = Date.now() + 3000;
+  // the stream opens with a hello of its own; the reset sends a second one
+  const hellos = () => seen.split('"type":"hello"').length - 1;
+  while (hellos() < 2 && Date.now() < until) { const { value, done } = await reader.read(); if (done) break; seen += new TextDecoder().decode(value); }
+  reader.cancel().catch(() => {});
+  assert.equal(hellos(), 2, 'connected browsers get a fresh hello');
+  assert.ok(seen.slice(seen.lastIndexOf('"type":"hello"')).includes('"sessions":[]'), 'the fresh hello has no sessions');
+  // a map in the body replaces the loaded one
+  const renamed = { ...JSON.parse(fs.readFileSync(MAP, 'utf8')), name: 'Reset Portal' };
+  assert.equal((await post('/api/reset', { map: renamed })).status, 200);
+  assert.equal((await (await api('/api/health')).json()).map, 'Reset Portal');
+  assert.equal((await post('/api/reset', { reload: true })).status, 200); // no file to reload after a body map: keeps the current map
+  assert.equal((await (await api('/api/health')).json()).map, 'Reset Portal');
+});
+
 test('pending questions expire (CODEHUD_QUESTION_TTL_S), waiters wake, SSE sees it', async () => {
   const q = await (await post('/api/questions', { question: 'expire me', context: '', session: 's-exp' })).json();
   const frames = sseCollect({}, 3500);

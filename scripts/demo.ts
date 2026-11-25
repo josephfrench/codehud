@@ -29,6 +29,10 @@ async function api<T = any>(method: string, route: string, body?: unknown): Prom
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// start clean every run: no leftover sessions, questions or history, and the sample map as shipped
+const sample: SystemMap = JSON.parse(fs.readFileSync(new URL('../examples/sample-webapp.system.json', import.meta.url), 'utf8'));
+await api('POST', '/api/reset', { map: sample });
+console.log('reset server state, loaded', sample.name);
 await api('POST', '/api/sessions', { id: session, label: 'demo agent', cwd: 'C:/example/acme-portal', status: 'working' });
 console.log('session', session);
 

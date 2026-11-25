@@ -341,6 +341,25 @@ async function handleApi(req: Req, res: Res, url: URL) {
     return json(res, 200, { ok: true, name: state.map!.name, nodes: state.map!.nodes.length });
   }
 
+  // Start over: drop sessions, questions and history; every connected browser gets a fresh hello.
+  // Body: { map } loads that map, { reload: true } re-reads the file given at startup, otherwise the map stays.
+  if (p === '/api/reset' && method === 'POST') {
+    const body = (await readJson(req, MAX_MAP_BODY)) as { map?: unknown; reload?: boolean };
+    for (const qid of state.questions.keys()) wake(qid);
+    state.questions.clear(); state.sessions.clear(); state.waiters.clear(); state.activity.length = 0; state.colorSeq = 0;
+    if (body.map !== undefined) {
+      const v = validateSystemMap(body.map);
+      if (!v.ok) throw new HttpError(400, v.errors.join('; '));
+      state.map = v.map; state.index = new MapIndex(v.map); state.mapPath = null;
+    } else if (body.reload && state.mapPath) {
+      try { const v = validateSystemMap(JSON.parse(fs.readFileSync(state.mapPath, 'utf8'))); if (v.ok) { state.map = v.map; state.index = new MapIndex(v.map); } }
+      catch (e: any) { throw new HttpError(400, `could not reload ${state.mapPath}: ${e.message}`); }
+    }
+    log('note', `Reset: sessions, questions and history cleared${state.map ? `; map "${state.map.name}" (${state.map.nodes.length} nodes)` : ''}`);
+    broadcast({ type: 'hello', map: state.map, questions: [], sessions: [], activity: state.activity.slice() });
+    return json(res, 200, { ok: true, nodes: state.map?.nodes.length ?? 0 });
+  }
+
   if (p === '/api/nodes' && method === 'GET') {
     if (!state.index) return json(res, 200, []);
     const file = url.searchParams.get('file');
