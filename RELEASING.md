@@ -5,7 +5,7 @@ crawler to plain JS and ships the built HUD; the other workspace packages stay p
 
 1. Bump `version` in `packages/cli/package.json` (the MCP bridge reports its own version from
    `packages/mcp/src/index.ts`; bump that too so `serverInfo.version` matches).
-2. `pnpm install && pnpm typecheck && pnpm test && pnpm pack` → `out/codehud-<version>.tgz`.
+2. `pnpm install && pnpm typecheck && pnpm test && pnpm release:pack` → `out/codehud-<version>.tgz`.
 3. Smoke it outside the repo: `npm i -g --prefix <tmp> out/codehud-<version>.tgz`, then
    `<tmp>/codehud demo --port 4790`, `codehud crawl <some repo>`, `codehud install claude --project <tmp project>`.
 4. Tag and push: `git tag v<version> && git push --tags`.
