@@ -10,6 +10,7 @@
     "dev": "pnpm -r --parallel --filter @codehud/server --filter @codehud/hud dev",
     "build": "pnpm --filter @codehud/hud build",
     "start": "node packages/server/src/index.ts",
+    "start:sample": "node packages/server/src/index.ts --map examples/sample-webapp.system.json",
     "demo": "node scripts/demo.ts",
     "mcp": "node packages/mcp/src/index.ts",
     "crawl": "node packages/crawler/src/cli.ts",

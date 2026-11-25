@@ -44,7 +44,6 @@ const TOKEN = process.env.CODEHUD_TOKEN ?? crypto.randomBytes(24).toString('base
 const HUD_DIST = path.resolve(here, '../../hud/dist');
 const INFO_DIR = path.join(os.homedir(), '.codehud');
 const INFO_FILE = path.join(INFO_DIR, 'server.json');
-const DEFAULT_MAP = path.resolve(repoRoot, 'examples/sample-webapp.system.json');
 const MAX_BODY = 64 * 1024;
 const MAX_MAP_BODY = 4 * 1024 * 1024;
 const MAX_SSE_CLIENTS = 16;
@@ -461,8 +460,8 @@ server.listen(PORT, HOST, () => {
   const tmp = INFO_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(info, null, 2), { mode: 0o600 });
   fs.renameSync(tmp, INFO_FILE);
-  const mapFile = args.map ? path.resolve(String(args.map)) : fs.existsSync(DEFAULT_MAP) ? DEFAULT_MAP : null;
-  if (mapFile) { try { loadMap(mapFile); } catch (e: any) { console.error(e.message); } }
+  if (args.map) { try { loadMap(path.resolve(String(args.map))); } catch (e: any) { console.error(e.message); } }
+  else console.log('codehud ▸ no map loaded; pass --map <system.json>, call hud_load_map from the agent, or open /demo');
   const url = `${ORIGIN}/#t=${TOKEN}`;
   console.log(`codehud ▸ open ${url}`);
   console.log(`         (the fragment is a one-time sign-in; details in ${INFO_FILE})`);

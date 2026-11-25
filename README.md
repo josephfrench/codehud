@@ -36,19 +36,25 @@ templates/         CLAUDE.md snippet and Claude Code hooks for repos that adopt 
 ```sh
 pnpm install
 pnpm build                 # builds the HUD into packages/hud/dist
-pnpm start                 # prints http://127.0.0.1:4777/#t=<token>  (loads examples/sample-webapp.system.json)
-pnpm demo                  # in another terminal: simulates an agent focusing + asking a question
+pnpm start                 # prints http://127.0.0.1:4777/#t=<token>; the HUD waits for a system to be loaded
 ```
 
-Open the printed URL. The `#t=` fragment signs the browser in once and is then stripped. Hot reload for UI
-work: `pnpm dev` (server on 4777, Vite on 5173 proxying `/api` with the token injected).
+Open the printed URL. The `#t=` fragment signs the browser in once and is then stripped. With nothing
+loaded the HUD shows how to load a system; `/demo` runs the whole thing on a sample system with a scripted
+agent, entirely in the browser (no server state, no agent), and links to the sample's JSON so you can see
+the format a crawler emits. Hot reload for UI work: `pnpm dev` (server on 4777, Vite on 5173 proxying
+`/api` with the token injected).
 
 Crawl a repo and load it:
 
 ```sh
-pnpm crawl C:/path/to/repo --out C:/path/to/repo/codehud/system.json
-pnpm start --map C:/path/to/repo/codehud/system.json
+pnpm crawl C:/path/to/repo --out C:/path/to/repo/.codehud/system.json
+pnpm start --map C:/path/to/repo/.codehud/system.json
 ```
+
+A running server also takes a map from the agent (`hud_load_map`) or from `PUT /api/map`. To drive the
+HUD from a real (simulated) agent process instead of the in-browser demo: `pnpm start:sample` then
+`pnpm demo` in a second terminal.
 
 ### Hooking up Claude Code
 
@@ -92,7 +98,8 @@ Three views, switched from the top bar or with `m` (map) and `d` (docs):
 | `Shift+F` | follow the agent / free roam |
 
 Amber means something needs you. Blue is where the agent is. Layout is deterministic: the same map at
-the same level always looks the same. `/assets` shows every resource sprite in its four states.
+the same level always looks the same. `/demo` is the in-browser tour; `/assets` shows every resource sprite in
+its four states.
 
 ## Security posture (proof of concept)
 

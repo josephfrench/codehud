@@ -4,7 +4,8 @@
  *   3. asks a question about the Stripe webhook and waits for the answer,
  *   4. reacts to the answer.
  *
- * Run `pnpm start` first, open http://127.0.0.1:4777, then `pnpm demo`.
+ * Run `pnpm start:sample` first (the server needs the sample map loaded), open the printed URL, then `pnpm demo`.
+ * For a no-server version of the same tour open http://127.0.0.1:4777/demo.
  */
 import fs from 'node:fs';
 import os from 'node:os';

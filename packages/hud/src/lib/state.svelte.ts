@@ -22,6 +22,9 @@ class HudState {
   activity = $state<ActivityItem[]>([]);
   sessions = $state<AgentSession[]>([]);
   connected = $state(false);
+  /** /demo: everything runs in the browser; no server, answers are handled locally */
+  demo = $state(false);
+  onLocalAnswer: ((id: string, body: { text?: string; optionId?: string }) => void) | null = null;
   mode = $state<Mode>('follow');
   activeQuestionId = $state<string | null>(null);
   showImports = $state(false);
@@ -103,7 +106,7 @@ class HudState {
   }
 
   async connect() {
-    if (this.es) return;
+    if (this.es || this.demo) return;
     await this.claimFromFragment();
     const es = new EventSource('/api/events');
     this.es = es;
@@ -121,6 +124,9 @@ class HudState {
     };
     setInterval(() => (this.now = Date.now()), 10_000);
   }
+
+  /** Apply a server event (also used by /demo to replay a scripted session). */
+  dispatch(ev: ServerEvent) { this.handle(ev); }
 
   private handle(ev: ServerEvent) {
     switch (ev.type) {
@@ -175,6 +181,13 @@ class HudState {
         break;
       }
     }
+  }
+
+  /** Forget everything except view preferences (used when the demo replays). */
+  reset() {
+    this.map = null; this.index = null; this.focusPath = []; this.selected = null; this.highlighted = new Set();
+    this.agentAt = null; this.questions = []; this.activity = []; this.sessions = []; this.activeQuestionId = null;
+    this.previewOption = null; this.blowoutFrom = null; this.mode = 'follow';
   }
 
   private setMap(map: SystemMap) {
@@ -274,6 +287,7 @@ class HudState {
 
   // ----- questions ---------------------------------------------------------
   async answer(q: Question, body: { text?: string; optionId?: string }) {
+    if (this.demo) { this.onLocalAnswer?.(q.id, body); return; }
     await api.answer(q.id, body);
   }
   toast(t: Omit<Toast, 'id'>) {

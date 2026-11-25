@@ -11,6 +11,7 @@
   import Overlays from './components/Overlays.svelte';
   import DocsView from './components/DocsView.svelte';
   import Minimap from './components/Minimap.svelte';
+  import Welcome from './components/Welcome.svelte';
 
   let topbar: ReturnType<typeof TopBar>;
   let dialogue: Dialogue | undefined = $state();
@@ -68,7 +69,9 @@
   <TopBar bind:this={topbar} />
   <main>
     <section class="stage">
-      {#if hud.view === 'docs'}
+      {#if !hud.map && !hud.demo}
+        <Welcome />
+      {:else if hud.view === 'docs'}
         <DocsView />
       {:else if hud.view === 'map' && hud.mapStyle === 'grid'}
         <Hud />
@@ -78,7 +81,7 @@
         {#if hud.view === 'map'}<Breadcrumbs />{/if}
         {#if hud.view === 'play'}<div class="mini"><Minimap /></div>{/if}
       {/if}
-      {#if hud.view !== 'docs'}
+      {#if hud.view !== 'docs' && hud.map}
         <Dialogue bind:this={dialogue} />
       {/if}
       <Blowout />

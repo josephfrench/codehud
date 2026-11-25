@@ -14,6 +14,7 @@
   let q = $state('');
 
   async function load(dir: string) {
+    if (hud.demo) { error = 'The demo runs without a server, so there are no project files to browse. Load a real system at / and this tab shows its files.'; return; }
     try { const r = await api.tree(dir); tree = { ...tree, [dir]: r.entries }; error = null; }
     catch (e: any) { error = e.message; }
   }
