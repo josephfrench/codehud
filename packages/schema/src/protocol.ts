@@ -73,6 +73,8 @@ export interface AgentSession {
   cwd?: string;
   lastSeen: string;
   status?: 'idle' | 'working' | 'waiting';
+  /** Optional CSS colour for this agent's markers; the HUD derives one from the id when absent. */
+  color?: string;
 }
 
 export interface ActivityItem {

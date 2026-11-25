@@ -12,6 +12,7 @@
   import DocsView from './components/DocsView.svelte';
   import Minimap from './components/Minimap.svelte';
   import Welcome from './components/Welcome.svelte';
+  import Timeline from './components/Timeline.svelte';
 
   let topbar: ReturnType<typeof TopBar>;
   let dialogue: Dialogue | undefined = $state();
@@ -28,7 +29,9 @@
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       if (typing(e)) { (e.target as HTMLElement).blur(); return; }
-      if (hud.showHelp) hud.showHelp = false;
+      if (hud.tip) hud.hideTip();
+      else if (hud.showHelp) hud.showHelp = false;
+      else if (hud.showTimeline) hud.showTimeline = false;
       else if (hud.selected) hud.select(null);
       else if (hud.previewOption !== null) hud.previewOption = null;
       else if (hud.view === 'map') hud.ascend();
@@ -44,6 +47,7 @@
       case 'c': hud.questionOpen = !hud.questionOpen; break;
       case 'i': hud.showImports = !hud.showImports; break;
       case 'l': hud.showActivity = !hud.showActivity; break;
+      case 'h': hud.showTimeline = !hud.showTimeline; break;
       case 't': hud.toggleTheme(); break;
       case '?': hud.showHelp = !hud.showHelp; break;
       case '/': topbar.focusSearch(); break;
@@ -63,7 +67,9 @@
   }
 </script>
 
-<svelte:window onkeydown={onKey} />
+<!-- a waiting question becomes immediate once the human is actually looking at this window -->
+<svelte:window onkeydown={onKey} onfocus={() => hud.onWindowFocus()} />
+<svelte:document onvisibilitychange={() => { if (document.visibilityState === 'visible') hud.onWindowFocus(); }} />
 
 <div class="app" class:with-activity={hud.showActivity}>
   <TopBar bind:this={topbar} />
@@ -84,6 +90,7 @@
       {#if hud.view !== 'docs' && hud.map}
         <Dialogue bind:this={dialogue} />
       {/if}
+      {#if hud.showTimeline}<Timeline />{/if}
       <Blowout />
       <Overlays />
     </section>

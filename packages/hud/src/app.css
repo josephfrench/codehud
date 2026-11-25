@@ -23,6 +23,14 @@
   --layer-persistence: #f7768e;
   --layer-external: #9ece6a;
   --layer-default: #8b96ad;
+  /* palette slots for user-defined layers (by position in map.layers) */
+  --palette-0: #7aa2f7; --palette-1: #c0a5f7; --palette-2: #73daca; --palette-3: #e0af68;
+  --palette-4: #f7768e; --palette-5: #9ece6a; --palette-6: #ff9e64; --palette-7: #2ac3de;
+  /* per-agent colours (slot 0 = the classic agent blue) */
+  --agent-0: #5ad2ff; --agent-1: #b388ff; --agent-2: #7ad88a; --agent-3: #ff8fa3; --agent-4: #ffd166; --agent-5: #4dd4c1;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 :root[data-theme='light'] {
   --bg: #f5f7fb; --bg-2: #ffffff; --bg-3: #eef1f7; --line: #d9dfea; --line-2: #c4ccdb;
@@ -30,6 +38,9 @@
   --accent: #c76f00; --agent: #0b7fc2;
   --layer-client: #3b6fd6; --layer-edge: #7c4fd0; --layer-api: #0f9d8a; --layer-domain: #b97a0c;
   --layer-persistence: #d0365a; --layer-external: #4f8f1f; --layer-default: #5c6880;
+  --palette-0: #3b6fd6; --palette-1: #7c4fd0; --palette-2: #0f9d8a; --palette-3: #b97a0c;
+  --palette-4: #d0365a; --palette-5: #4f8f1f; --palette-6: #d2641a; --palette-7: #0e8fa6;
+  --agent-0: #0b7fc2; --agent-1: #6f3fd1; --agent-2: #1f8f3a; --agent-3: #c8325a; --agent-4: #b07a00; --agent-5: #0e8c7a;
 }
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }

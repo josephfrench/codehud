@@ -4,10 +4,20 @@
 import { MapIndex, type SystemMap, type SysNode } from '../../../schema/src/index.ts';
 import type { Question, ActivityItem, AgentSession, ServerEvent } from '../../../schema/src/protocol.ts';
 import { api } from './api.ts';
+import { layerColor, sessionColor } from './colors.ts';
 
 export type Mode = 'follow' | 'roam';
 
 export interface Toast { id: number; text: string; nodes?: string[]; kind: 'question' | 'info' }
+export interface AgentPos { session: string; nodes: string[]; note?: string; at: string }
+export interface Tip { x: number; y: number; title: string; lines: string[]; accent?: string }
+
+/**
+ * Interruption policy (interface-patterns.md §3): a new question is *negotiated* by default: amber badge on
+ * the node, count in the top bar, a quiet toast. It becomes *immediate* (auto-zoom) only when this window
+ * already has focus, when it regains focus, or when nobody has acted on it for this long.
+ */
+export const INTERRUPT_AFTER_MS = 20_000;
 
 class HudState {
   map = $state.raw<SystemMap | null>(null);
@@ -17,7 +27,8 @@ class HudState {
   selected = $state<string | null>(null);
   /** exact node ids the agent / question pointed at */
   highlighted = $state.raw<Set<string>>(new Set());
-  agentAt = $state.raw<{ nodes: string[]; note?: string; at: string; session?: string } | null>(null);
+  /** where each agent session last was */
+  agents = $state.raw<Map<string, AgentPos>>(new Map());
   questions = $state<Question[]>([]);
   activity = $state<ActivityItem[]>([]);
   sessions = $state<AgentSession[]>([]);
@@ -26,11 +37,15 @@ class HudState {
   demo = $state(false);
   onLocalAnswer: ((id: string, body: { text?: string; optionId?: string }) => void) | null = null;
   mode = $state<Mode>('follow');
+  /** follow mode tracks only this session when set (null = every session) */
+  followSession = $state<string | null>(null);
   activeQuestionId = $state<string | null>(null);
   showImports = $state(false);
   showHelp = $state(false);
   showActivity = $state(false);
-  /** 'focus' shows only the relevant slice; 'map' is the whole layer x lane grid */
+  /** decision log / timeline drawer */
+  showTimeline = $state(false);
+  /** 'play' shows only the relevant slice; 'map' is the whole layer x lane grid; 'docs' the files */
   view = $state<'play' | 'map' | 'docs'>('play');
   /** how the map explorer draws: the original layer x lane grid, or the 3D scene */
   mapStyle = $state<'grid' | 'scene'>((() => { try { return (localStorage.getItem('codehud-map-style') as 'grid' | 'scene') || 'grid'; } catch { return 'grid'; } })());
@@ -40,6 +55,8 @@ class HudState {
   blowoutFrom = $state.raw<{ x: number; y: number } | null>(null);
   /** option index being previewed in the dialogue (null = none) */
   previewOption = $state<number | null>(null);
+  /** shared hover tooltip (stubs, "why is this here?") */
+  tip = $state.raw<Tip | null>(null);
   theme = $state<'dark' | 'light'>((() => { try { return (localStorage.getItem('codehud-theme') as 'dark' | 'light') || 'dark'; } catch { return 'dark'; } })());
   toasts = $state<Toast[]>([]);
   /** bump to ask the canvas to fit these ids (null = whole level) */
@@ -47,6 +64,11 @@ class HudState {
   /** which lane column the ←/→ keys are parked on at the top level */
   laneIndex = $state(-1);
   now = $state(Date.now());
+  /** node id -> last time an agent focused it (ms); feeds search ranking */
+  focusedAt = $state.raw<Map<string, number>>(new Map());
+  /** questions that have already pulled the viewport (never re-alert) */
+  private zoomedQuestions = new Set<string>();
+  private interruptTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   // ----- derived -----------------------------------------------------------
   current = $derived.by<SysNode | null>(() => {
@@ -59,11 +81,28 @@ class HudState {
     return this.index.childrenOf(this.current.parent ?? null);
   });
   pending = $derived(this.questions.filter((q) => q.status === 'pending'));
+  /** pending questions from the followed session (or all) */
+  pendingFollowed = $derived(this.pending.filter((q) => !this.followSession || q.session === this.followSession));
   activeQuestion = $derived.by<Question | null>(() =>
-    this.questions.find((q) => q.id === this.activeQuestionId) ?? this.pending[0] ?? null);
+    this.questions.find((q) => q.id === this.activeQuestionId) ?? this.pendingFollowed[0] ?? this.pending[0] ?? null);
+  /** the agent position the HUD follows: the followed session's, else the most recent */
+  agentAt = $derived.by<AgentPos | null>(() => {
+    if (this.followSession) return this.agents.get(this.followSession) ?? null;
+    let best: AgentPos | null = null;
+    for (const a of this.agents.values()) if (!best || a.at > best.at) best = a;
+    return best;
+  });
   /** highlighted ids plus all their ancestors (so containers glow when a child is targeted) */
   litSet = $derived.by<Set<string>>(() => this.withAncestors(this.highlighted));
-  agentSet = $derived.by<Set<string>>(() => this.withAncestors(new Set(this.agentAt?.nodes ?? [])));
+  /** every node (plus ancestors) some agent is at */
+  agentSet = $derived.by<Set<string>>(() => this.withAncestors(new Set([...this.agents.values()].flatMap((a) => a.nodes))));
+  /** node id -> colour of the agent there (first session wins; ancestors inherit) */
+  agentColorByNode = $derived.by<Map<string, string>>(() => {
+    const m = new Map<string, string>();
+    const list = [...this.agents.values()].sort((a, b) => a.at.localeCompare(b.at));
+    for (const a of list) for (const id of this.withAncestors(new Set(a.nodes))) if (!m.has(id)) m.set(id, this.sessionColor(a.session));
+    return m;
+  });
   /** node id -> pending questions touching it or its descendants */
   pendingByNode = $derived.by<Map<string, Question[]>>(() => {
     const m = new Map<string, Question[]>();
@@ -75,6 +114,13 @@ class HudState {
     for (const q of this.questions) if (q.status === 'answered') for (const id of this.withAncestors(new Set(q.resolvedNodes))) m.set(id, [...(m.get(id) ?? []), q]);
     return m;
   });
+  /** pending count per session id ('' = unattributed) */
+  pendingBySession = $derived.by<Map<string, Question[]>>(() => {
+    const m = new Map<string, Question[]>();
+    for (const q of this.pending) m.set(q.session ?? '', [...(m.get(q.session ?? '') ?? []), q]);
+    return m;
+  });
+  liveSessions = $derived(this.sessions.filter((s) => this.now - new Date(s.lastSeen).getTime() < 10 * 60_000));
 
   private withAncestors(ids: Set<string>): Set<string> {
     const out = new Set<string>();
@@ -84,6 +130,34 @@ class HudState {
       for (const a of this.index.ancestors(id)) out.add(a.id);
     }
     return out;
+  }
+
+  // ----- colours -----------------------------------------------------------
+  layerColor(id: string | undefined | null): string { return id ? layerColor(this.map?.layers ?? [], id) : 'var(--layer-default)'; }
+  nodeColor(n: SysNode | null | undefined): string { return n ? this.layerColor(this.index?.layerOf(n) || n.layer) : 'var(--fg-3)'; }
+  sessionColor(id: string | undefined | null): string { return sessionColor(this.sessions.find((s) => s.id === id) ?? id); }
+  /** the latest answered question on a node (or its descendants): "why is this here?" */
+  latestDecision(id: string): Question | null {
+    const list = this.decisionsByNode.get(id);
+    if (!list?.length) return null;
+    return [...list].sort((a, b) => (b.answer?.answeredAt ?? '').localeCompare(a.answer?.answeredAt ?? ''))[0];
+  }
+
+  // ----- search ------------------------------------------------------------
+  /** Text search, re-ranked by what matters right now: pending questions first, then recent agent focus. */
+  search(q: string, limit = 8): { node: SysNode; why: string | null }[] {
+    if (!this.index) return [];
+    const base = this.index.search(q, limit * 4);
+    const now = this.now;
+    const scored = base.map((node, i) => {
+      let s = (base.length - i) / base.length; // keep the text order as a tiebreaker
+      let why: string | null = null;
+      const at = this.focusedAt.get(node.id);
+      if (at) { const ageMin = (now - at) / 60_000; s += ageMin < 2 ? 3 : ageMin < 15 ? 2 : ageMin < 120 ? 1 : 0.3; why = `agent · ${timeAgoShort(at, now)}`; }
+      if (this.pendingByNode.has(node.id)) { s += 5; why = 'waiting on you'; }
+      return { node, why, s };
+    });
+    return scored.sort((a, b) => b.s - a.s).slice(0, limit);
   }
 
   // ----- connection --------------------------------------------------------
@@ -128,6 +202,8 @@ class HudState {
   /** Apply a server event (also used by /demo to replay a scripted session). */
   dispatch(ev: ServerEvent) { this.handle(ev); }
 
+  private followed(session: string | undefined): boolean { return !this.followSession || session === this.followSession; }
+
   private handle(ev: ServerEvent) {
     switch (ev.type) {
       case 'hello': {
@@ -135,41 +211,60 @@ class HudState {
         this.questions = ev.questions;
         this.sessions = ev.sessions;
         this.activity = ev.activity;
-        const p = this.pending[0];
-        if (p) { this.activeQuestionId = p.id; this.goTo(p.resolvedNodes); }
-        else {
-          // resume where the agent last was, so a reload is not a blank stage
-          const last = [...ev.activity].reverse().find((a) => a.nodes?.length);
-          if (last?.nodes) { this.agentAt = { nodes: last.nodes, note: last.text, at: last.at, session: last.session }; this.goTo(last.nodes); }
-          else this.requestFit(null);
+        // rebuild per-session positions and focus recency from the activity log
+        const agents = new Map<string, AgentPos>();
+        const focusedAt = new Map<string, number>();
+        for (const a of ev.activity) {
+          if (!a.nodes?.length) continue;
+          const t = new Date(a.at).getTime();
+          for (const id of a.nodes) focusedAt.set(id, t);
+          if (a.kind === 'focus') agents.set(a.session ?? '', { session: a.session ?? '', nodes: a.nodes, note: a.text, at: a.at });
         }
+        this.agents = agents;
+        this.focusedAt = focusedAt;
+        const p = this.pendingFollowed[0] ?? this.pending[0];
+        if (p) { this.activeQuestionId = p.id; this.zoomedQuestions.add(p.id); this.goTo(p.resolvedNodes); }
+        else if (this.agentAt?.nodes.length) this.goTo(this.agentAt.nodes); // resume where the agent last was
+        else this.requestFit(null);
         break;
       }
       case 'map': this.setMap(ev.map); break;
       case 'focus': {
-        this.agentAt = { nodes: ev.focus.resolvedNodes, note: ev.focus.note, at: new Date().toISOString(), session: ev.focus.session };
+        const session = ev.focus.session ?? '';
+        const next = new Map(this.agents);
+        next.set(session, { session, nodes: ev.focus.resolvedNodes, note: ev.focus.note, at: new Date().toISOString() });
+        this.agents = next;
+        const fa = new Map(this.focusedAt);
+        for (const id of ev.focus.resolvedNodes) fa.set(id, Date.now());
+        this.focusedAt = fa;
         if (ev.focus.source === 'hook') break; // passive presence: show the dot, never move the viewport
-        if (this.mode === 'follow' && ev.focus.resolvedNodes.length) {
+        if (this.mode === 'follow' && this.followed(ev.focus.session) && ev.focus.resolvedNodes.length) {
           this.highlighted = new Set(ev.focus.resolvedNodes);
           if (ev.focus.zoom !== false) this.goTo(ev.focus.resolvedNodes);
         }
         break;
       }
       case 'question': {
-        this.questions = [...this.questions.filter((q) => q.id !== ev.question.id), ev.question];
+        const q = ev.question;
+        const isNew = !this.questions.some((x) => x.id === q.id);
+        this.questions = [...this.questions.filter((x) => x.id !== q.id), q];
         this.questionOpen = true;
-        if (this.mode === 'follow' || !this.activeQuestionId) {
-          this.activeQuestionId = ev.question.id;
-          this.goTo(ev.question.resolvedNodes);
-        } else {
-          this.toast({ text: `Agent needs you: ${ev.question.question}`, nodes: ev.question.resolvedNodes, kind: 'question' });
+        if (!isNew || q.status !== 'pending') break;
+        const mine = this.mode === 'follow' && this.followed(q.session);
+        if (!this.activeQuestionId || mine) this.activeQuestionId = q.id;
+        if (mine && this.hasFocus()) this.interrupt(q.id);
+        else {
+          // negotiated: badge + count + quiet toast; escalate after INTERRUPT_AFTER_MS
+          this.toast({ text: `Agent needs you: ${q.question}`, nodes: q.resolvedNodes, kind: 'question' });
+          if (mine) this.interruptTimers.set(q.id, setTimeout(() => this.interrupt(q.id), INTERRUPT_AFTER_MS));
         }
         break;
       }
       case 'answer': {
         this.questions = this.questions.map((q) => (q.id === ev.question.id ? ev.question : q));
         this.previewOption = null;
-        if (this.activeQuestionId === ev.question.id) this.activeQuestionId = this.pending[0]?.id ?? null;
+        this.clearInterrupt(ev.question.id);
+        if (this.activeQuestionId === ev.question.id) this.activeQuestionId = this.pendingFollowed[0]?.id ?? this.pending[0]?.id ?? null;
         break;
       }
       case 'session': {
@@ -183,11 +278,36 @@ class HudState {
     }
   }
 
+  private hasFocus() { try { return document.hasFocus() && document.visibilityState === 'visible'; } catch { return true; } }
+  /** Pull the viewport to a pending question, once. */
+  private interrupt(id: string) {
+    this.clearInterrupt(id);
+    const q = this.questions.find((x) => x.id === id);
+    if (!q || q.status !== 'pending' || this.zoomedQuestions.has(id)) return;
+    if (this.mode !== 'follow' || !this.followed(q.session)) return;
+    this.zoomedQuestions.add(id);
+    this.activeQuestionId = id;
+    this.toasts = this.toasts.filter((t) => t.kind !== 'question' || !t.nodes || t.nodes.join() !== q.resolvedNodes.join());
+    this.goTo(q.resolvedNodes);
+  }
+  private clearInterrupt(id: string) {
+    const t = this.interruptTimers.get(id);
+    if (t) { clearTimeout(t); this.interruptTimers.delete(id); }
+  }
+  /** Call when the window regains focus: a waiting question becomes immediate now that the human is looking. */
+  onWindowFocus() {
+    const q = this.pendingFollowed.find((x) => !this.zoomedQuestions.has(x.id));
+    if (q && this.mode === 'follow') this.interrupt(q.id);
+  }
+
   /** Forget everything except view preferences (used when the demo replays). */
   reset() {
     this.map = null; this.index = null; this.focusPath = []; this.selected = null; this.highlighted = new Set();
-    this.agentAt = null; this.questions = []; this.activity = []; this.sessions = []; this.activeQuestionId = null;
-    this.previewOption = null; this.blowoutFrom = null; this.mode = 'follow';
+    this.agents = new Map(); this.questions = []; this.activity = []; this.sessions = []; this.activeQuestionId = null;
+    this.previewOption = null; this.blowoutFrom = null; this.mode = 'follow'; this.followSession = null; this.focusedAt = new Map();
+    this.zoomedQuestions.clear();
+    for (const t of this.interruptTimers.values()) clearTimeout(t);
+    this.interruptTimers.clear();
   }
 
   private setMap(map: SystemMap) {
@@ -267,10 +387,11 @@ class HudState {
   select(id: string | null) { this.selected = id; }
   openBlowout(id: string, from: { x: number; y: number } | null) { this.blowoutFrom = from; this.selected = id; }
   roam() { if (this.mode !== 'roam') this.mode = 'roam'; }
-  follow() {
+  follow(session?: string | null) {
+    if (session !== undefined) this.followSession = session;
     this.mode = 'follow';
-    const q = this.pending[0];
-    if (q) { this.activeQuestionId = q.id; this.goTo(q.resolvedNodes); }
+    const q = this.pendingFollowed[0];
+    if (q) { this.activeQuestionId = q.id; this.zoomedQuestions.add(q.id); this.clearInterrupt(q.id); this.goTo(q.resolvedNodes); }
     else if (this.agentAt?.nodes.length) this.goTo(this.agentAt.nodes);
     else this.requestFit(null);
   }
@@ -296,6 +417,15 @@ class HudState {
     setTimeout(() => (this.toasts = this.toasts.filter((x) => x.id !== id)), 8000);
   }
   dismissToast(id: number) { this.toasts = this.toasts.filter((x) => x.id !== id); }
+
+  // ----- tooltips ----------------------------------------------------------
+  showTip(tip: Tip) { this.tip = tip; }
+  hideTip() { this.tip = null; }
+}
+
+function timeAgoShort(t: number, now: number): string {
+  const s = Math.max(0, Math.round((now - t) / 1000));
+  return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)}m ago` : `${Math.round(s / 3600)}h ago`;
 }
 
 export const hud = new HudState();

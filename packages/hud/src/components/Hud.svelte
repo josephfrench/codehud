@@ -1,6 +1,8 @@
 <script lang="ts">
   import { hud } from '../lib/state.svelte.ts';
   import { computeLayout, bbox, KIND_GLYPH, EDGE_STYLE, LANE_HEAD_H, type Layout, type VisEdge, type Card } from '../lib/layout.ts';
+  import { outsideStubs, type Stub } from '../lib/stubs.ts';
+  import Minimap from './Minimap.svelte';
 
   let container: HTMLDivElement;
   let svgEl: SVGSVGElement;
@@ -9,6 +11,41 @@
 
   const layout = $derived<Layout | null>(hud.index ? computeLayout(hud.index, hud.visible, { showImports: hud.showImports }) : null);
   const hasHighlight = $derived(hud.highlighted.size > 0);
+  const stubs = $derived<Stub[]>(hud.index && layout ? outsideStubs(hud.index, hud.current?.id ?? null, layout, { showImports: hud.showImports }) : []);
+  const reducedMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+
+  // ----- staged zoom (interface-patterns.md §2) ------------------------------
+  // Zoom in: (1) siblings compress and dim, the focus card grows, (2) the level swaps, (3) children and edges fade in.
+  // Zoom out: the card we came from starts enlarged and settles into place while its siblings fade in.
+  const LEAVE_MS = 150, ENTER_MS = 260;
+  let shown = $state<Layout | null>(null);
+  let shownStubs = $state<Stub[]>([]);
+  let phase = $state<'idle' | 'leaving' | 'entering'>('idle');
+  let leavingId = $state<string | null>(null);
+  let arrivingId = $state<string | null>(null);
+  let lastDepth = -1;
+  let lastLevel = '';
+  let stageTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    const l = layout, s = stubs;
+    const depth = hud.focusPath.length;
+    const level = hud.focusPath.join('/');
+    const prev = shown;
+    const swap = () => { shown = l; shownStubs = s; };
+    if (!l || !prev || reducedMotion() || level === lastLevel) { swap(); lastDepth = depth; lastLevel = level; return; }
+    clearTimeout(stageTimer);
+    const into = hud.focusPath.at(-1);
+    if (depth > lastDepth && into && prev.cardById.has(into)) {
+      phase = 'leaving'; leavingId = into; arrivingId = null;
+      stageTimer = setTimeout(() => { swap(); phase = 'entering'; leavingId = null; stageTimer = setTimeout(() => (phase = 'idle'), ENTER_MS); }, LEAVE_MS);
+    } else {
+      swap();
+      arrivingId = depth < lastDepth && hud.selected && l.cardById.has(hud.selected) ? hud.selected : null;
+      phase = 'entering'; leavingId = null;
+      stageTimer = setTimeout(() => { phase = 'idle'; arrivingId = null; }, ENTER_MS + 80);
+    }
+    lastDepth = depth; lastLevel = level;
+  });
 
   // ----- fit / animation ----------------------------------------------------
   let lastSeq = -1;
@@ -25,7 +62,7 @@
     }
     const cards = f.ids ? l.cards.filter((c) => f.ids!.includes(c.id)) : l.cards;
     if (f.ids && cards.length) fitTo(bbox(cards)!, 160, 760);
-    else fitTo({ x: 0, y: 0, w: l.width, h: l.height }, 24, 600);
+    else fitTo({ x: 0, y: 0, w: l.width, h: l.height }, hud.current ? 90 : 24, 600);
   });
 
   function fitTo(box: { x: number; y: number; w: number; h: number }, pad: number, minW: number) {
@@ -37,6 +74,7 @@
   }
   function animateTo(target: typeof vb) {
     if (anim) cancelAnimationFrame(anim);
+    if (reducedMotion()) { vb = target; return; }
     const from = { ...vb };
     const t0 = performance.now();
     const dur = 380;
@@ -99,16 +137,17 @@
     drag = null;
     if (svgEl.hasPointerCapture(e.pointerId)) svgEl.releasePointerCapture(e.pointerId);
     if (wasDrag) hud.roam();
-    else if ((e.target as Element).closest('.card') === null) hud.select(null);
+    else if ((e.target as Element).closest('.card, .stub') === null) hud.select(null);
   }
 
   // ----- helpers ---------------------------------------------------------------
-  const layerColor = (id: string) => `var(--layer-${id}, var(--layer-default))`;
+  const layerColor = (id: string) => hud.layerColor(id);
   const trunc = (s: string | undefined, n: number) => (!s ? '' : s.length > n ? s.slice(0, n - 1) + '…' : s);
   const childCount = (id: string) => hud.index?.childrenOf(id).length ?? 0;
   const isLit = (id: string) => hud.highlighted.has(id);
   const isSoft = (id: string) => !hud.highlighted.has(id) && hud.litSet.has(id);
   const hasAgent = (id: string) => hud.agentSet.has(id);
+  const agentColor = (id: string) => hud.agentColorByNode.get(id) ?? 'var(--agent)';
   const pendingCount = (id: string) => hud.pendingByNode.get(id)?.length ?? 0;
   const decisionCount = (id: string) => hud.decisionsByNode.get(id)?.length ?? 0;
   function edgeLit(e: VisEdge) { return hud.litSet.has(e.from) && hud.litSet.has(e.to); }
@@ -117,7 +156,7 @@
     if (!hasHighlight) return false;
     if (hud.litSet.has(c.id) || hud.selected === c.id) return false;
     // keep direct neighbours of lit nodes readable
-    return !layout!.edges.some((e) => (e.from === c.id && hud.litSet.has(e.to)) || (e.to === c.id && hud.litSet.has(e.from)));
+    return !shown!.edges.some((e) => (e.from === c.id && hud.litSet.has(e.to)) || (e.to === c.id && hud.litSet.has(e.from)));
   }
   function onCardClick(e: MouseEvent, id: string) {
     e.stopPropagation();
@@ -133,11 +172,36 @@
     e.stopPropagation();
     hud.descend(id);
   }
+  function stubLine(s: Stub, repId: string) {
+    const c = shown!.cardById.get(repId);
+    if (!c) return '';
+    const cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+    return `M${s.x},${s.y} L${cx},${cy}`;
+  }
+  function onStubClick(e: MouseEvent, s: Stub) {
+    e.stopPropagation();
+    hud.hideTip();
+    hud.goTo(s.targets.map((t) => t.id));
+  }
+  function stubTip(e: MouseEvent, s: Stub) {
+    const dir = s.out && s.inn ? '↔' : s.out ? '→' : '←';
+    hud.showTip({ x: e.clientX, y: e.clientY, title: `${dir} ${s.label} · ${s.count} edge${s.count === 1 ? '' : 's'} (${s.kinds.join(', ')})`, lines: s.targets.map((t) => `${KIND_GLYPH[t.kind] ?? '•'} ${t.label}`), accent: layerColor(s.layer) });
+  }
+  function whyTip(e: MouseEvent, id: string) {
+    const d = hud.latestDecision(id);
+    if (!d) return;
+    const chosen = d.options?.find((o) => o.id === d.answer?.optionId)?.label ?? d.answer?.text ?? '';
+    const n = decisionCount(id);
+    hud.showTip({ x: e.clientX, y: e.clientY, title: 'Why is this here?', lines: [d.question, `✓ ${chosen}`, ...(n > 1 ? [`+${n - 1} earlier decision${n > 2 ? 's' : ''} · press h`] : [])], accent: 'var(--ok)' });
+  }
+  const stubLabel = (s: Stub) => `${s.out && s.inn ? '↔' : s.out ? '→' : '←'} ${trunc(s.label, 14)}${s.count > 1 ? ` ×${s.count}` : ''}`;
+  const showMini = $derived(!!shown && (hud.focusPath.length > 0 || shown.width > size.w));
 </script>
 
 <div class="canvas" bind:this={container}>
   <svg
     bind:this={svgEl}
+    class={phase}
     viewBox="{vb.x} {vb.y} {vb.w} {vb.h}"
     preserveAspectRatio="xMidYMid meet"
     onwheel={onWheel}
@@ -161,7 +225,8 @@
       </filter>
     </defs>
 
-    {#if layout}
+    {#if shown}
+      {@const layout = shown}
       <!-- layer bands -->
       {#each layout.bands as b (b.layer.id)}
         <rect x={-2000} y={b.y} width={layout.width + 4000} height={b.h} fill={layerColor(b.layer.id)} opacity="0.045" />
@@ -180,6 +245,21 @@
           {c.lane?.label ?? 'Shared'}
         </text>
       {/each}
+
+      <!-- edges to the outside: stubs at the boundary -->
+      <g class="stubs">
+        {#each shownStubs as s (s.id)}
+          {#each s.insideReps as rep (rep)}
+            <path d={stubLine(s, rep)} class="stub-line" />
+          {/each}
+          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
+          <g class="stub" transform="translate({s.x} {s.y})" style="--c: {layerColor(s.layer)}"
+            onclick={(e) => onStubClick(e, s)} onmouseenter={(e) => stubTip(e, s)} onmousemove={(e) => stubTip(e, s)} onmouseleave={() => hud.hideTip()}>
+            <rect x={-64} y={-11} width={128} height={22} rx="11" />
+            <text y="4" text-anchor="middle">{stubLabel(s)}</text>
+          </g>
+        {/each}
+      </g>
 
       <!-- edges -->
       <g class="edges">
@@ -221,44 +301,55 @@
           class:selected={hud.selected === c.id}
           class:dim={cardDim(c)}
           class:has-pending={pend > 0}
+          class:leave-focus={leavingId === c.id}
+          class:leave-sib={!!leavingId && leavingId !== c.id}
+          class:arrive={arrivingId === c.id}
           transform="translate({c.x} {c.y})"
-          style="--c: {layerColor(c.layer)}"
+          style="--c: {layerColor(c.layer)}; --a: {agentColor(c.id)}"
           onclick={(e) => onCardClick(e, c.id)}
           ondblclick={(e) => onCardDbl(e, c.id)}
         >
-          {#if lit || pend}
-            <rect class="ring" x={-4} y={-4} width={c.w + 8} height={c.h + 8} rx="12" />
-          {/if}
-          <rect class="bg" width={c.w} height={c.h} rx="8" />
-          <rect class="accent" x="0" y="8" width="3" height={c.h - 16} rx="1.5" />
-          <text class="kind" x="14" y="17">{KIND_GLYPH[c.node.kind] ?? '•'} {c.node.kind}</text>
-          <text class="label" x="14" y="38">{trunc(c.node.label, 24)}</text>
-          <text class="summary" x="14" y="56">{trunc(c.node.summary, 30)}</text>
-          {#if kids}
-            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-            <g class="badge" transform="translate({c.w - 40} {c.h - 22})" onclick={(e) => onBadge(e, c.id)}>
-              <rect width="32" height="16" rx="8" />
-              <text x="16" y="12" text-anchor="middle">▸ {kids}</text>
-            </g>
-          {/if}
-          {#if dec}
-            <text class="decision" x={c.w - 12} y="17" text-anchor="end">✓{dec}</text>
-          {/if}
-          {#if pend}
-            <g transform="translate({c.w - 6} 6)">
-              <circle r="9" class="pend" />
-              <text y="4" text-anchor="middle" class="pend-n">{pend}</text>
-            </g>
-          {/if}
-          {#if hasAgent(c.id)}
-            <circle cx="6" cy="6" r="4" class="agent-dot" />
-          {/if}
+          <g class="inner">
+            {#if lit || pend}
+              <rect class="ring" x={-4} y={-4} width={c.w + 8} height={c.h + 8} rx="12" />
+            {/if}
+            <rect class="bg" width={c.w} height={c.h} rx="8" />
+            <rect class="accent" x="0" y="8" width="3" height={c.h - 16} rx="1.5" />
+            <text class="kind" x="14" y="17">{KIND_GLYPH[c.node.kind] ?? '•'} {c.node.kind}</text>
+            <text class="label" x="14" y="38">{trunc(c.node.label, 24)}</text>
+            <text class="summary" x="14" y="56">{trunc(c.node.summary, 30)}</text>
+            {#if kids}
+              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+              <g class="badge" transform="translate({c.w - 40} {c.h - 22})" onclick={(e) => onBadge(e, c.id)}>
+                <rect width="32" height="16" rx="8" />
+                <text x="16" y="12" text-anchor="middle">▸ {kids}</text>
+              </g>
+            {/if}
+            {#if dec}
+              <!-- svelte-ignore a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
+              <g class="why" transform="translate({c.w - 12} 17)" onmouseenter={(e) => whyTip(e, c.id)} onmouseleave={() => hud.hideTip()}
+                onclick={(e) => { e.stopPropagation(); hud.showTimeline = true; }}>
+                <rect x={-30} y={-12} width={34} height={16} rx="8" />
+                <text text-anchor="end">✓{dec}</text>
+              </g>
+            {/if}
+            {#if pend}
+              <g transform="translate({c.w - 6} 6)">
+                <circle r="9" class="pend" />
+                <text y="4" text-anchor="middle" class="pend-n">{pend}</text>
+              </g>
+            {/if}
+            {#if hasAgent(c.id)}
+              <circle cx="6" cy="6" r="4" class="agent-dot" />
+            {/if}
+          </g>
         </g>
       {/each}
     {:else}
       <text x="40" y="60" fill="var(--fg-2)" font-size="16">No system map loaded. Start the server with --map, or call hud_load_map from the agent.</text>
     {/if}
   </svg>
+  {#if showMini}<Minimap viewport={hud.focusPath.length ? null : vb} />{/if}
 </div>
 
 <style>
@@ -282,7 +373,15 @@
   .edge-tag.dim, .edge-kind.dim { opacity: .15; }
   .edge-kind text { font: 9px var(--mono); fill: var(--fg-3); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
 
+  /* stubs: edges leaving this level */
+  .stub-line { fill: none; stroke: var(--fg-3); stroke-width: 1.2; stroke-dasharray: 3 5; opacity: .45; }
+  .stub { cursor: pointer; }
+  .stub rect { fill: var(--bg-2); stroke: var(--c); stroke-width: 1.2; opacity: .9; }
+  .stub text { font: 600 10.5px var(--mono); fill: var(--c); }
+  .stub:hover rect { fill: var(--bg-3); stroke-width: 2; opacity: 1; }
+
   .card { cursor: pointer; transition: opacity .25s; }
+  .card .inner { transform-box: fill-box; transform-origin: center; transition: transform .15s ease-in, opacity .15s ease-in; }
   .card .bg { fill: var(--card); stroke: var(--line-2); stroke-width: 1; transition: stroke .15s, fill .15s; }
   .card:hover .bg { fill: var(--card-2); stroke: var(--fg-3); }
   .card .accent { fill: var(--c); }
@@ -294,14 +393,28 @@
   .card.soft .bg { stroke: var(--accent); stroke-dasharray: 4 3; }
   .card.lit .bg { stroke: var(--accent); stroke-width: 2; fill: var(--card-2); filter: url(#glow); }
   .card .ring { fill: none; stroke: var(--accent); stroke-width: 2; animation: ring 1.6s ease-out infinite; pointer-events: none; }
-  .card.agent .bg { stroke: var(--agent); }
+  .card.agent .bg { stroke: var(--a); }
   .card.lit.agent .bg { stroke: var(--accent); }
-  .agent-dot { fill: var(--agent); animation: pulse 1.4s ease-in-out infinite; }
+  .agent-dot { fill: var(--a); animation: pulse 1.4s ease-in-out infinite; }
   .badge rect { fill: var(--bg-3); stroke: var(--line-2); }
   .badge text { font: 600 10px var(--mono); fill: var(--fg-2); }
   .badge:hover rect { stroke: var(--fg); }
   .badge:hover text { fill: var(--fg); }
-  .decision { font: 600 10px var(--mono); fill: var(--ok); }
+  .why { cursor: help; }
+  .why rect { fill: transparent; }
+  .why:hover rect { fill: var(--bg-3); }
+  .why text { font: 600 10px var(--mono); fill: var(--ok); }
   .pend { fill: var(--accent); }
   .pend-n { font: 700 10px var(--mono); fill: #140c00; }
+
+  /* staged zoom */
+  .card.leave-sib .inner { opacity: .15; transform: scale(.9); }
+  .card.leave-focus .inner { transform: scale(1.3); }
+  .card.leave-focus .bg { stroke: var(--fg); }
+  svg.entering .card .inner { animation: card-in .26s ease-out both; }
+  svg.entering .edges, svg.entering .stubs { animation: fade-in .3s .08s ease-out both; }
+  svg.entering .card.arrive .inner { animation: card-arrive .3s ease-out both; }
+  @keyframes card-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+  @keyframes card-arrive { from { opacity: 1; transform: scale(1.5); } to { opacity: 1; transform: scale(1); } }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 </style>

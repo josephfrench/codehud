@@ -10,7 +10,8 @@
   import { untrack } from 'svelte';
   import { hud } from '../lib/state.svelte.ts';
   import { focusLayout } from '../lib/focusLayout.ts';
-  import { computeLayout, EDGE_STYLE } from '../lib/layout.ts';
+  import { computeLayout, EDGE_STYLE, KIND_GLYPH } from '../lib/layout.ts';
+  import { outsideStubs, type Stub } from '../lib/stubs.ts';
   import { anchorFor } from '../lib/anchor.ts';
   import Sprite from './Sprite.svelte';
   import type { SysNode, EdgeKind } from '../../../schema/src/index.ts';
@@ -23,7 +24,9 @@
   interface Line { key: string; from: string; to: string; label: string; flow: boolean; faint?: boolean; preview?: boolean; d: string; mx: number; my: number }
   interface Band { label: string; color: string; y0: number; y1: number }
   interface Col { label: string; x: number }
+  interface PlacedStub { stub: Stub; x: number; y: number }
   const HIDDEN: EdgeKind[] = ['imports', 'depends'];
+  const EMPTY = { placed: [] as Placed[], lines: [] as Line[], bands: [] as Band[], cols: [] as Col[], stubs: [] as PlacedStub[], zone: null as SysNode | null, width: 1200 };
   const FLOW: EdgeKind[] = ['calls', 'writes', 'emits', 'navigates'];
 
   const focalIds = $derived(hud.highlighted.size ? [...hud.highlighted] : hud.agentAt?.nodes ?? []);
@@ -41,10 +44,10 @@
 
   // ----- play layout --------------------------------------------------------------
   const ROW = { up: { y: -480, s: 0.8, step: 280 }, focal: { y: 0, s: 1.15, step: 330 }, down: { y: 330, s: 0.9, step: 300 } } as const;
-  function playScene(): { placed: Placed[]; lines: Line[]; bands: Band[]; cols: Col[]; zone: SysNode | null; width: number } {
+  function playScene(): typeof EMPTY {
     const idx = hud.index!;
     const layout = focusLayout(idx, focalIds, { showImports: hud.showImports, maxSide: 6 });
-    if (!layout) return { placed: [], lines: [], bands: [], cols: [], zone: null, width: 1200 };
+    if (!layout) return EMPTY;
     const rows: Record<'up' | 'focal' | 'down', Placed[]> = { up: [], focal: [], down: [] };
     for (const n of layout.nodes) {
       const role = n.role === 'more' ? (n.y < 0 ? 'up' : 'down') : n.role;
@@ -111,15 +114,16 @@
         lines.push({ key: `pv:${a.id}>${pid}`, from: a.id, to: pid, label: i === 0 ? label : '', flow: true, preview: true, ...curve(a, b) });
       });
     }
-    return { placed, lines, bands: [], cols: [], zone: layout.container?.parent ?? null, width: 1400 };
+    return { placed, lines, bands: [], cols: [], stubs: [], zone: layout.container?.parent ?? null, width: 1400 };
   }
 
   // ----- map layout: the grid explorer's layout, on the floor -----------------------
   const K = 1.3;
-  function mapScene() {
+  function mapScene(): typeof EMPTY {
     const idx = hud.index!;
     const layout = computeLayout(idx, hud.visible, { showImports: hud.showImports });
     const ox = layout.width / 2, oy = layout.height / 2;
+    const toPlane = (x: number, y: number) => ({ x: (x - ox) * K, y: (y - oy) * K });
     const placed: Placed[] = layout.cards.map((c) => ({ id: c.id, node: c.node, role: 'node' as Role, x: (c.x + c.w / 2 - ox) * K, y: (c.y + c.h / 2 - oy) * K, s: 1, children: idx.childrenOf(c.id) }));
     const pos = new Map(placed.map((p) => [p.id, p]));
     const lines: Line[] = [];
@@ -129,12 +133,29 @@
       const label = e.count > 1 ? `${EDGE_STYLE[e.kind]?.label ?? e.kind} ×${e.count}` : e.labels[0] ?? (EDGE_STYLE[e.kind]?.label ?? e.kind);
       lines.push({ key: e.key, from: e.from, to: e.to, label, flow: FLOW.includes(e.kind), ...curve(a, b) });
     }
-    const bands: Band[] = layout.bands.map((b) => ({ label: b.layer.label, color: `var(--layer-${b.layer.id}, var(--layer-default))`, y0: (b.y - oy) * K, y1: (b.y + b.h - oy) * K }));
+    const bands: Band[] = layout.bands.map((b) => ({ label: b.layer.label, color: hud.layerColor(b.layer.id), y0: (b.y - oy) * K, y1: (b.y + b.h - oy) * K }));
     const cols: Col[] = layout.columns.map((c) => ({ label: c.lane?.label ?? 'Shared', x: (c.x + c.w / 2 - ox) * K }));
-    return { placed, lines, bands, cols, zone: null, width: layout.width * K };
+    // edges that leave this level: stubs just outside the bands, beams to the cards they touch
+    const stubs: PlacedStub[] = outsideStubs(idx, hud.current?.id ?? null, layout, { showImports: hud.showImports }).map((s) => {
+      const p = toPlane(s.x, s.y);
+      const off = s.side === 'top' ? { x: 0, y: -90 } : s.side === 'bottom' ? { x: 0, y: 60 } : s.side === 'left' ? { x: -120, y: 0 } : { x: 60, y: 0 };
+      return { stub: s, x: p.x + off.x, y: p.y + off.y };
+    });
+    for (const ps of stubs) {
+      const a: Placed = { id: 'stub:' + ps.stub.id, node: null, role: 'node', x: ps.x, y: ps.y, s: 1, children: [] };
+      for (const rep of ps.stub.insideReps) {
+        const b = pos.get(rep);
+        if (!b) continue;
+        const from = ps.stub.out && !ps.stub.inn ? b : a, to = from === a ? b : a;
+        lines.push({ key: `stub:${ps.stub.id}>${rep}`, from: from.id, to: to.id, label: '', flow: false, faint: true, ...curve(from, to) });
+      }
+    }
+    return { placed, lines, bands, cols, stubs, zone: null, width: layout.width * K };
   }
 
-  const scene = $derived.by(() => (!hud.index ? { placed: [], lines: [], bands: [], cols: [], zone: null, width: 1200 } : mode === 'map' ? mapScene() : playScene()));
+  const scene = $derived.by(() => (!hud.index ? EMPTY : mode === 'map' ? mapScene() : playScene()));
+  /** map mode re-mounts the sprites per level so they fade in after the camera has moved (staged zoom) */
+  const levelKey = $derived(mode === 'map' ? 'map:' + hud.focusPath.join('/') : 'play');
   const placed = $derived(scene.placed);
   const lines = $derived(scene.lines);
   const leftEdge = $derived(Math.min(...placed.map((p) => p.x), -scene.width / 2));
@@ -239,7 +260,19 @@
   }
 
   const hot = (id: string) => !!hover && (id === hover || lines.some((l) => (l.from === hover && l.to === id) || (l.to === hover && l.from === id)));
-  const layerColor = (n: SysNode | null) => (n ? `var(--layer-${hud.index?.layerOf(n) ?? n.layer}, var(--layer-default))` : 'var(--fg-3)');
+  const layerColor = (n: SysNode | null) => hud.nodeColor(n);
+  function stubTip(e: MouseEvent, s: Stub) {
+    const dir = s.out && s.inn ? '↔' : s.out ? '→' : '←';
+    hud.showTip({ x: e.clientX, y: e.clientY, title: `${dir} ${s.label} · ${s.count} edge${s.count === 1 ? '' : 's'} (${s.kinds.join(', ')})`, lines: s.targets.map((t) => `${KIND_GLYPH[t.kind] ?? '•'} ${t.label}`), accent: hud.layerColor(s.layer) });
+  }
+  function whyTip(e: MouseEvent, id: string) {
+    const d = hud.latestDecision(id);
+    if (!d) return;
+    const chosen = d.options?.find((o) => o.id === d.answer?.optionId)?.label ?? d.answer?.text ?? '';
+    const n = hud.decisionsByNode.get(id)?.length ?? 0;
+    hud.showTip({ x: e.clientX, y: e.clientY, title: 'Why is this here?', lines: [d.question, `✓ ${chosen}`, ...(n > 1 ? [`+${n - 1} earlier decision${n > 2 ? 's' : ''} · press h`] : [])], accent: 'var(--ok)' });
+  }
+  const stubLabel = (s: Stub) => `${s.out && s.inn ? '↔' : s.out ? '→' : '←'} ${s.label.length > 16 ? s.label.slice(0, 15) + '…' : s.label}${s.count > 1 ? ` ×${s.count}` : ''}`;
   const stateOf = (id: string) => (previewSet.has(id) ? 'pending' : previewSet.size ? 'dim' : (hud.pendingByNode.get(id)?.length ?? 0) > 0 ? 'pending' : hud.agentSet.has(id) ? 'active' : hud.litSet.has(id) && mode === 'map' ? 'active' : hover && !hot(id) ? 'dim' : 'idle');
   const metaLine = (n: SysNode) => {
     const m = n.meta ?? {};
@@ -290,6 +323,14 @@
           {/if}
         {/each}
 
+        {#each scene.stubs as ps (ps.stub.id)}
+          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
+          <div class="stubpill" style="left: {PLANE_W / 2 + ps.x}px; top: {PLANE_H / 2 + ps.y}px; transform: translate(-50%, -50%) {billboard}; --c: {hud.layerColor(ps.stub.layer)}"
+            onclick={(e) => { e.stopPropagation(); if (suppressClick) return; hud.hideTip(); hud.goTo(ps.stub.targets.map((t) => t.id)); }}
+            onmouseenter={(e) => stubTip(e, ps.stub)} onmousemove={(e) => stubTip(e, ps.stub)} onmouseleave={() => hud.hideTip()}>{stubLabel(ps.stub)}</div>
+        {/each}
+
+        {#key levelKey}
         {#each placed as p (p.id)}
           <div class="shadow" style="left: {PLANE_W / 2 + p.x}px; top: {PLANE_H / 2 + p.y}px; --s: {p.s}"></div>
           <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
@@ -312,14 +353,19 @@
               </div>
               <Sprite kind={p.node.kind} size={136} color={stateOf(p.id) === 'pending' ? 'var(--accent)' : layerColor(p.node)} state={stateOf(p.id)} />
               {#if p.children.length}<div class="kids">{p.children.length} inside{mode === 'map' ? ' · right-click to open' : ''}</div>{/if}
-              {#if hud.agentSet.has(p.id)}<div class="here">agent here</div>{/if}
+              {#if hud.agentSet.has(p.id)}<div class="here" style="color: {hud.agentColorByNode.get(p.id) ?? 'var(--agent)'}">agent here</div>{/if}
               {#if previewSet.has(p.id)}<div class="would">would touch</div>{/if}
+              {#if hud.decisionsByNode.has(p.id)}
+                <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
+                <div class="why" onmouseenter={(e) => whyTip(e, p.id)} onmouseleave={() => hud.hideTip()} onclick={(e) => { e.stopPropagation(); hud.hideTip(); hud.showTimeline = true; }}>✓ why?</div>
+              {/if}
               {#if target === p.id}<div class="reticle"></div>{/if}
             {:else}
               <div class="plate"><span class="label">+{p.moreCount} more</span></div>
             {/if}
           </div>
         {/each}
+        {/key}
       {/if}
     </div>
   </div>
@@ -379,6 +425,13 @@
   .kids { font: 10.5px var(--mono); color: var(--fg-3); margin-top: -8px; }
   .here { font: 10px var(--mono); color: var(--agent); letter-spacing: .08em; text-transform: uppercase; }
   .would { font: 10px var(--mono); color: var(--accent); letter-spacing: .08em; text-transform: uppercase; }
+  .why { font: 10px var(--mono); color: var(--ok); letter-spacing: .06em; cursor: help; opacity: .75; }
+  .why:hover { opacity: 1; text-decoration: underline dotted; }
+  .stubpill { position: absolute; transform-origin: 50% 50%; font: 600 12px var(--mono); color: var(--c); background: color-mix(in srgb, var(--bg-2) 88%, transparent); border: 1.5px solid var(--c); border-radius: 999px; padding: 4px 12px; white-space: nowrap; cursor: pointer; }
+  .stubpill:hover { background: var(--bg-3); box-shadow: 0 0 18px -6px var(--c); }
+  /* staged zoom in map mode: the camera moves first, then the level's sprites fade in */
+  .res.node { animation: res-in .32s .16s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes res-in { from { opacity: 0; transform: translate(-50%, -90%) scale(.8); } }
   .reticle { position: absolute; inset: -10px -14px; border: 1.5px solid var(--agent); border-radius: 14px; pointer-events: none; animation: reticle 1.6s ease-in-out infinite; }
   @keyframes reticle { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
   .zone { position: absolute; left: 50%; top: 50%; width: 1150px; height: 460px; transform: translate(-50%, -50%); border: 1.5px dashed color-mix(in srgb, var(--fg-3) 50%, transparent); border-radius: 50%; pointer-events: none; }

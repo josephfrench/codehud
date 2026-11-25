@@ -13,7 +13,7 @@
   const inn = $derived(node && hud.map ? hud.map.edges.filter((e) => e.to === node.id && e.kind !== 'imports') : []);
   const decisions = $derived(node ? hud.decisionsByNode.get(node.id) ?? [] : []);
   const label = (id: string) => hud.index?.get(id)?.label ?? id;
-  const color = $derived(node ? `var(--layer-${hud.index?.layerOf(node)}, var(--layer-default))` : 'var(--fg-2)');
+  const color = $derived(node ? hud.nodeColor(node) : 'var(--fg-2)');
   const columns = $derived(Array.isArray(node?.meta?.columns) ? (node!.meta!.columns as unknown[]).map((c) => (typeof c === 'string' ? { name: c, type: '' } : { name: (c as any).name ?? '?', type: (c as any).type ?? '' })) : []);
   const metaEntries = $derived(node?.meta ? Object.entries(node.meta).filter(([k, v]) => k !== 'columns' && k !== 'signature' && typeof v !== 'object') : []);
   const configEntries = $derived(node?.meta ? Object.entries(node.meta).filter(([k, v]) => k !== 'columns' && typeof v === 'object' && v !== null) : []);
