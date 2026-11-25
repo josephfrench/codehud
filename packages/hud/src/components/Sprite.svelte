@@ -70,9 +70,14 @@
       <rect x="80" y="44" width="14" height="14" rx="3" class="fill-dark stroke" />
     </g>
   {:else if kind === 'event'}
-    <polygon points="56,12 30,54 48,54 42,88 72,42 54,42 62,12" class="fill-dark stroke flash" />
-    <circle cx="50" cy="50" r="20" class="stroke ripple" fill="none" />
-    <circle cx="50" cy="50" r="20" class="stroke ripple r2" fill="none" />
+    <!-- beacon: a mast that broadcasts, arcs ping outward -->
+    <path d="M38 84 L50 48 L62 84 Z" class="fill-dark stroke" />
+    <line x1="50" y1="48" x2="50" y2="36" class="stroke thick" />
+    <circle cx="50" cy="32" r="4.5" class="fill ping-dot" />
+    <path d="M38 22 A16 16 0 0 0 38 42" class="stroke thick ping a0" fill="none" />
+    <path d="M62 22 A16 16 0 0 1 62 42" class="stroke thick ping a0" fill="none" />
+    <path d="M30 14 A26 26 0 0 0 30 50" class="stroke ping a1" fill="none" />
+    <path d="M70 14 A26 26 0 0 1 70 50" class="stroke ping a1" fill="none" />
   {:else if kind === 'table'}
     <ellipse cx="50" cy="28" rx="30" ry="10" class="fill-dark stroke" />
     <path d="M20 28 V72 A30 10 0 0 0 80 72 V28" class="fill-dark stroke" />
@@ -81,37 +86,59 @@
     <path d="M20 40 A30 10 0 0 0 80 40" class="stroke thick write" fill="none" />
     <ellipse cx="50" cy="28" rx="30" ry="10" class="stroke" fill="none" />
   {:else if kind === 'store'}
-    <rect x="20" y="18" width="60" height="64" rx="8" class="fill-dark stroke" />
-    <circle cx="50" cy="50" r="16" class="stroke thick" fill="none" />
-    <g class="spin-slow" style="transform-origin: 50px 50px">
-      <line x1="50" y1="36" x2="50" y2="42" class="stroke thick" />
-      <line x1="50" y1="58" x2="50" y2="64" class="stroke thick" />
-      <line x1="36" y1="50" x2="42" y2="50" class="stroke thick" />
-      <line x1="58" y1="50" x2="64" y2="50" class="stroke thick" />
+    <!-- datastore: a cabinet; the middle drawer slides out and back -->
+    <rect x="24" y="14" width="52" height="72" rx="4" class="fill-dark stroke" />
+    <rect x="30" y="20" width="40" height="17" rx="2" class="fill-dark stroke" />
+    <rect x="44" y="27" width="12" height="3" rx="1.5" class="fill" />
+    <g class="drawer">
+      <rect x="30" y="42" width="40" height="17" rx="2" class="fill-dark stroke" />
+      <rect x="44" y="49" width="12" height="3" rx="1.5" class="fill" />
     </g>
-    <circle cx="50" cy="50" r="5" class="fill pulse" />
+    <rect x="30" y="64" width="40" height="17" rx="2" class="fill-dark stroke" />
+    <rect x="44" y="71" width="12" height="3" rx="1.5" class="fill" />
   {:else if kind === 'cache'}
-    <rect x="26" y="26" width="48" height="48" rx="6" class="fill-dark stroke" />
-    {#each [34, 44, 54, 64] as p}
-      <line x1={p} y1="16" x2={p} y2="26" class="stroke" /><line x1={p} y1="74" x2={p} y2="84" class="stroke" />
-      <line x1="16" y1={p} x2="26" y2={p} class="stroke" /><line x1="74" y1={p} x2="84" y2={p} class="stroke" />
+    <!-- cache / KV: key : value rows; entries fade out as they expire and are written again -->
+    {#each [30, 48, 66] as y, i}
+      <g class="kv kv{i}">
+        <rect x="18" y={y - 6} width="20" height="12" rx="6" class="fill-dark stroke" />
+        <circle cx="26" cy={y} r="2.2" class="fill" />
+        <circle cx="42" cy={y - 2.5} r="1.2" class="fill" /><circle cx="42" cy={y + 2.5} r="1.2" class="fill" />
+        <rect x="47" y={y - 6} width="30" height="12" rx="3" class="fill-dark stroke" />
+        <line x1="52" y1={y} x2={62 + i * 4} y2={y} class="stroke" />
+      </g>
     {/each}
-    {#each [[38, 38], [52, 38], [38, 52], [52, 52]] as [x, y], i}
-      <rect {x} {y} width="10" height="10" rx="2" class="fill bit b{i}" />
-    {/each}
+    <polygon points="84,10 74,28 81,28 76,42 88,22 81,22 86,10" class="fill bolt" />
   {:else if kind === 'external'}
-    <path d="M30 70 H70 A14 14 0 0 0 70 42 A18 18 0 0 0 36 38 A13 13 0 0 0 30 70 Z" class="fill-dark stroke" />
-    <circle cx="50" cy="52" r="6" class="stroke wave" fill="none" />
-    <circle cx="50" cy="52" r="6" class="stroke wave w2" fill="none" />
-    <circle cx="50" cy="52" r="3" class="fill" />
+    <!-- third party: our plug goes into their socket across the system boundary (dashed) -->
+    <line x1="56" y1="12" x2="56" y2="88" class="stroke dash" />
+    <rect x="60" y="32" width="26" height="36" rx="6" class="fill-dark stroke" />
+    <rect x="67" y="42" width="4" height="7" rx="1" class="fill" /><rect x="75" y="42" width="4" height="7" rx="1" class="fill" />
+    <rect x="70" y="55" width="6" height="4" rx="1" class="fill" />
+    <g class="plug">
+      <path d="M10 76 C 22 76, 20 50, 28 50" class="stroke" fill="none" />
+      <rect x="26" y="40" width="22" height="20" rx="4" class="fill-dark stroke" />
+      <line x1="48" y1="45.5" x2="60" y2="45.5" class="stroke thick" />
+      <line x1="48" y1="54.5" x2="60" y2="54.5" class="stroke thick" />
+    </g>
   {:else if kind === 'config'}
-    {#each [32, 50, 68] as y, i}
-      <line x1="22" y1={y} x2="78" y2={y} class="stroke" />
-      <circle cy={y} r="5" class="fill-dark stroke knob k{i}" />
-    {/each}
+    <!-- configuration: sliders and a toggle on a panel; values change slowly -->
+    <rect x="18" y="18" width="64" height="64" rx="6" class="fill-dark stroke" />
+    <line x1="28" y1="34" x2="72" y2="34" class="stroke" />
+    <circle cy="34" r="4.5" class="fill-dark stroke handle h0" />
+    <line x1="28" y1="50" x2="72" y2="50" class="stroke" />
+    <circle cy="50" r="4.5" class="fill-dark stroke handle h1" />
+    <rect x="28" y="61" width="22" height="11" rx="5.5" class="fill-dark stroke" />
+    <circle cy="66.5" r="3.5" class="fill toggle" />
+    <line x1="58" y1="66.5" x2="72" y2="66.5" class="stroke" style="opacity: .4" />
   {:else if kind === 'test'}
-    <circle cx="50" cy="50" r="30" class="fill-dark stroke" />
-    <path d="M36 50 l10 10 20 -22" class="stroke thick draw" fill="none" />
+    <!-- tests: a checklist on a clipboard; ticks land one by one, then the run restarts -->
+    <rect x="26" y="20" width="48" height="66" rx="4" class="fill-dark stroke" />
+    <rect x="41" y="14" width="18" height="10" rx="3" class="fill-dark stroke" />
+    {#each [38, 54, 70] as y, i}
+      <rect x="33" y={y - 5} width="10" height="10" rx="2" class="stroke" fill="none" />
+      <line x1="49" y1={y} x2={66 - i * 3} y2={y} class="stroke" style="opacity: .45" />
+      <path d="M{35} {y} l3 3 5 -6" class="stroke thick tick t{i}" fill="none" />
+    {/each}
   {:else if kind === 'app'}
     <rect x="14" y="20" width="72" height="48" rx="5" class="fill-dark stroke" />
     <rect x="20" y="26" width="60" height="36" rx="2" class="fill screen" />
@@ -165,6 +192,15 @@
   .screen { opacity: .25; }
   .scan { opacity: .7; animation: scan 3s linear infinite; }
   .pulse { animation: breathe 2.6s ease-in-out infinite; }
+  .ping { opacity: 0; animation: ping 3.2s ease-out infinite; } .a1 { animation-delay: .35s; }
+  .ping-dot { animation: breathe 3.2s ease-out infinite; }
+  .drawer { animation: drawer 6s ease-in-out infinite; }
+  .kv { animation: ttl 7.5s ease-in-out infinite; } .kv1 { animation-delay: 2.5s; } .kv2 { animation-delay: 5s; }
+  .bolt { opacity: .7; }
+  .plug { animation: plug 5s ease-in-out infinite; }
+  .handle { animation: handle 9s ease-in-out infinite; } .h0 { --from: 36px; --to: 62px; } .h1 { --from: 58px; --to: 42px; animation-delay: 3s; }
+  .toggle { animation: toggle 6s ease-in-out infinite; }
+  .tick { stroke-dasharray: 14; stroke-dashoffset: 14; animation: tick 6s ease-out infinite; } .t1 { animation-delay: .5s; } .t2 { animation-delay: 1s; }
 
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes slide { 0% { transform: translateX(-6px); opacity: .3; } 50% { transform: translateX(6px); opacity: 1; } 100% { transform: translateX(-6px); opacity: .3; } }
@@ -179,4 +215,11 @@
   @keyframes draw { 0% { stroke-dashoffset: 50; } 40%, 70% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -50; } }
   @keyframes hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
   @keyframes scan { from { transform: translateY(0); } to { transform: translateY(33px); } }
+  @keyframes ping { 0% { opacity: 0; } 10% { opacity: .9; } 55%, 100% { opacity: 0; } }
+  @keyframes drawer { 0%, 30% { transform: translateX(0); } 50%, 70% { transform: translateX(9px); } 90%, 100% { transform: translateX(0); } }
+  @keyframes ttl { 0%, 60% { opacity: 1; transform: translateY(0); } 75% { opacity: 0; transform: translateY(-3px); } 85% { opacity: 0; transform: translateY(3px); } 100% { opacity: 1; transform: translateY(0); } }
+  @keyframes plug { 0%, 20% { transform: translateX(-9px); } 45%, 75% { transform: translateX(0); } 100% { transform: translateX(-9px); } }
+  @keyframes handle { 0%, 35% { transform: translateX(var(--from)); } 50%, 85% { transform: translateX(var(--to)); } 100% { transform: translateX(var(--from)); } }
+  @keyframes toggle { 0%, 40% { transform: translateX(33.5px); opacity: .45; } 50%, 90% { transform: translateX(44.5px); opacity: 1; } 100% { transform: translateX(33.5px); opacity: .45; } }
+  @keyframes tick { 0% { stroke-dashoffset: 14; } 20%, 80% { stroke-dashoffset: 0; } 90%, 100% { stroke-dashoffset: 14; } }
 </style>
