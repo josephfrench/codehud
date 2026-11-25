@@ -1,0 +1,14 @@
+{
+  "name": "@codehud/acp-spike",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Spike: an Agent Client Protocol client that forwards tool-call locations and permission requests to the codehud HUD.",
+  "type": "module",
+  "bin": { "codehud-acp": "./src/index.ts" },
+  "scripts": {
+    "start": "node src/index.ts"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "2.12.0"
+  }
+}

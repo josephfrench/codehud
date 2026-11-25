@@ -48,6 +48,8 @@ export interface QuestionInput {
   allowFreeText?: boolean;
   session?: string;
   agent?: string;
+  /** Expire the question after this many seconds (capped by the server's default, 30 min). */
+  ttlSeconds?: number;
 }
 
 export interface Answer {
@@ -65,6 +67,8 @@ export interface Question extends QuestionInput {
   /** Node ids after resolving `files`. */
   resolvedNodes: string[];
   answer?: Answer;
+  /** Set by the server: when a pending question flips to `expired`. */
+  expiresAt?: string;
 }
 
 export interface AgentSession {
@@ -73,6 +77,8 @@ export interface AgentSession {
   cwd?: string;
   lastSeen: string;
   status?: 'idle' | 'working' | 'waiting';
+  /** Stable per-session colour assigned by the server (CSS colour string). */
+  color?: string;
 }
 
 export interface ActivityItem {

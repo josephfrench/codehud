@@ -61,6 +61,16 @@ Human answers: plain text, verbatim, wrapped as `<human_answer question_id=... o
 
 Everything above assumes no attacker on the network path. Over Tailscale or a remote dev box: the Host allowlist must include the configured hostname, cookies need `Secure` and HTTPS (LNA also requires a secure context), and the fragment token becomes a cross-machine shared secret. Rules: default stays loopback-only; a non-loopback bind requires an explicit `--allow-remote` flag *and* an operator-set token or real auth, else refuse to start. With Tailscale, keep binding loopback and front it with `tailscale serve`, trusting `Tailscale-User-Login` only because Serve strips client-supplied copies and only when direct access is impossible ([Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve)); never Funnel.
 
+Implemented 2026-11-25 as `--allow-remote <host>`: the server still binds loopback unless `--bind` is also given, adds the
+named hosts to the Host allowlist and their `https://`/`http://` forms to the Origin allowlist, refuses to start without
+`--operator-token` (>= 16 chars; also `CODEHUD_OPERATOR_TOKEN`), accepts that token at the page claim, and marks the cookie
+`Secure` when the claim arrives over HTTPS. Threats this does and does not cover: the operator token is a shared secret
+sent once in a URL fragment, so it belongs in a password manager and should be rotated per engagement (restart with a new
+one); anyone on the tailnet who learns it can answer as the human, so pair it with Tailscale ACLs; the bearer token in
+`server.json` never leaves the machine; `Tailscale-User-Login` is not consulted yet (future: bind sessions to it); a
+non-loopback `--bind` without TLS in front sends the operator token in clear on the LAN, so only use `--bind` behind a
+TLS terminator or inside a trusted overlay network.
+
 ## 6. Supply chain and code execution in the crawler
 
 Hard rule: **the crawler never executes repo code.** No `import()`/`require()` of repo files, no `eval`, no `package.json` scripts, no `npm install`/`pnpm build`, no loading `babel.config.js`, `eslint.config.js`, `vite.config.ts` or any config-as-code (they execute on load), no `open()`/`spawn` with repo-derived strings. The crawler may: walk the tree without following symlinks out of root; read text files under a size cap (1 MB each, total cap); parse with the TypeScript compiler API / `@babel/parser` / tree-sitter (parsers, not loaders); read `package.json`, `tsconfig.json` and lockfiles as JSON only (never resolve `main`/`exports` by loading); match paths with bounded regexes (hostile inputs can trigger ReDoS); emit JSON. codehud's own install: `--frozen-lockfile` with `ignore-scripts=true`.
@@ -76,15 +86,19 @@ Hard rule: **the crawler never executes repo code.** No `import()`/`require()` o
 - No CORS headers, ever — cross-origin reads of SSE/GET.
 - Strict CSP + sanitised markdown for agent-supplied text — injected agent self-answering via XSS.
 - Body caps, SSE client cap, request timeouts — local DoS.
-- Pending-question cap and `hud_ask` rate limit with expiry — flooding the human into click-through approvals.
+- DONE Pending-question cap (3 per session) and per-session token buckets: questions 5 burst / 4 per minute, focus and
+  notes 60 burst / 10 per second, `429` + `Retry-After`; pending questions expire (`--question-ttl`, default 30 min,
+  `ttlSeconds` per question) and expiry wakes waiters and reaches the HUD — flooding the human into click-through approvals.
 - Crawler never executes repo code (enforced in review and tests) — RCE from a malicious repo.
 - Data framing of tool results and answers; per-field caps; strip control chars — indirect prompt injection.
 - 256-bit token, timing-safe compare, rotate per start, delete on exit — guessing, stale credentials.
+- DONE SSE events carry monotonic ids; a 500-event ring buffer replays from `Last-Event-ID`, otherwise a fresh `hello` —
+  silently missed questions after a reconnect.
 
 **Before sharing publicly**
-- Redirect `localhost` -> `127.0.0.1`; `[::1]` in allowlist — cookie-host mismatch, IPv6 bypass.
-- `icacls` hardening of `server.json` on Windows; `0600` on POSIX — other local users.
-- `--allow-remote` gate with operator token; refuse other non-loopback binds — accidental LAN exposure.
+- DONE Redirect `localhost` -> `127.0.0.1` (307 for page loads, API untouched); `[::1]` in allowlist — cookie-host mismatch, IPv6 bypass.
+- `icacls` hardening of `server.json` on Windows; `0600` on POSIX — other local users. (`CODEHUD_HOME` moves the file.)
+- DONE `--allow-remote <host>` gate with mandatory operator token; `--bind` refused without it — accidental LAN exposure.
 - `realpath` containment under map root for any file-resolving route — traversal.
 - Crawler symlink/size/regex-time caps; `ignore-scripts` in install docs — hostile repos, ReDoS.
 - Lockfile pinning and dependency audit of codehud itself — supply chain.

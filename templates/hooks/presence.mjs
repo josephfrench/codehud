@@ -14,34 +14,33 @@
  *     }]
  *   }
  * }
+ * (templates/hooks/install.mjs writes this for you, together with ask.mjs and session-start.mjs.)
  */
-import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+import { readInfo, readPayload } from './_common.mjs';
 
-let raw = '';
-for await (const chunk of process.stdin) raw += chunk;
-let payload;
-try { payload = JSON.parse(raw); } catch { process.exit(0); }
+async function main() {
+  const payload = await readPayload();
+  const file = payload?.tool_input?.file_path ?? payload?.tool_input?.notebook_path;
+  if (!file) return;
 
-const file = payload?.tool_input?.file_path ?? payload?.tool_input?.notebook_path;
-if (!file) process.exit(0);
+  const info = readInfo();
+  if (!info) return;
 
-let info;
-try { info = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.codehud', 'server.json'), 'utf8')); } catch { process.exit(0); }
-
-const verb = /read/i.test(payload.tool_name ?? '') ? 'reading' : 'editing';
-try {
-  await fetch(`${info.url}/api/focus`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${info.token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      files: [file],
-      source: 'hook',
-      zoom: false,
-      session: payload.session_id,
-      note: `${verb} ${path.basename(file)}`,
-    }),
-    signal: AbortSignal.timeout(2000),
-  });
-} catch { /* server down; stay silent */ }
+  const verb = /read/i.test(payload.tool_name ?? '') ? 'reading' : 'editing';
+  try {
+    await fetch(`${info.url}/api/focus`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${info.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        files: [file],
+        source: 'hook',
+        zoom: false,
+        session: payload.session_id,
+        note: `${verb} ${path.basename(file)}`,
+      }),
+      signal: AbortSignal.timeout(2000),
+    });
+  } catch { /* server down; stay silent */ }
+}
+await main();

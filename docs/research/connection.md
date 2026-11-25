@@ -233,3 +233,54 @@ map root so hook paths resolve; add `version`/`url` to `ServerInfo`; make `hud_a
 7. Multi-session UI: labels, colours, per-session filter, 409 on double answers, orphaned questions on session death.
 8. Codex adapter for the same hooks script (payload is near-identical), then an ACP-client spike (`gemini --acp`) that
    maps `tool_call_update.locations` to presence, to decide whether ACP earns a place in v2.
+
+## 7. What shipped (2026-11-25)
+
+**Hooks pack** (`templates/hooks/`, installed by `node templates/hooks/install.mjs [projectDir] [--global]`,
+removed with `--uninstall`, previewed with `--dry-run`, `--json` for the CLI):
+
+| Event | Matcher | Script | Behaviour |
+|---|---|---|---|
+| `PostToolUse` | `Edit\|Write\|MultiEdit\|Read\|NotebookEdit` | `presence.mjs` (async, 5 s) | posts a non-zooming `source: "hook"` focus for the touched file |
+| `PreToolUse` | `AskUserQuestion` | `ask.mjs` (timeout 3600 s) | if the server is up **and** a browser is connected, creates one HUD question per `questions[]` entry (options become single-choice + free text), long-polls for the answer and returns `permissionDecision: "allow"` with `updatedInput: { questions, answers: { "<question>": "<label>" } }`; otherwise prints nothing and the terminal prompt appears |
+| `SessionStart` | (all) | `session-start.mjs` (10 s) | when the server answers `/api/health`, registers the session (`session_id`, `cwd`) and injects `additionalContext` ("codehud is live at …; prefer hud_ask / hud_focus") |
+
+The hooks never call `process.exit()`: on Windows, exiting while a `fetch` socket is still closing trips a libuv
+assertion (`UV_HANDLE_CLOSING` in `async.c`) and the process dies with a non-zero code, which makes Claude Code
+discard the JSON. Each hook is an `async main()` that returns early; the process ends by itself in ~50 ms.
+
+Trade-offs of the `AskUserQuestion` hook, verified against the hooks reference: `"allow"` alone is not enough, the
+answer must travel in `updatedInput`; a hook that reaches its `timeout` is cancelled and the call "continues through
+the normal permission flow", so the only cost of a slow human is a terminal prompt after an hour; the hook has no
+node/file context, so the HUD shows the question wherever the agent last was; the HUD question carries
+`ttlSeconds` equal to the hook's own wait so nothing lingers after the hook gives up. `hud_ask` remains the rich path.
+
+**No-browser ladder in `hud_ask`** (bridge; `/api/health` reports `browsers`, the number of connected SSE clients):
+
+1. a browser is connected → the question goes to the HUD and the call long-polls as before;
+2. none → open `url/#t=<token>` once per bridge process (`CODEHUD_OPEN_ON_ASK=0` disables) and poll health for up to 10 s;
+3. still none → if the MCP client advertised `elicitation`, raise a **form elicitation** (`choice` enum from the options
+   plus an optional `note`, or a single `answer` string); an accepted result is POSTed to `/api/questions/:id/answer`
+   so the HUD log stays complete, then returned as `<human_answer>`;
+4. declined / unsupported → return plain text: the question and numbered options, an instruction to ask in the
+   terminal, and the question id so `hud_await` can still pick the answer up if a HUD is opened later.
+
+A `429` from the server (per-session token bucket or pending cap) comes back as text ("hud_ask refused: …") rather
+than a tool error, so the model slows down instead of retrying blindly.
+
+**Remote mode.** Default is unchanged: loopback bind, 127.0.0.1 origin only, `localhost`/`[::1]` page loads 307 to
+127.0.0.1 so the cookie lives on one host. `--allow-remote <host[,host2]>` adds those hosts (bare, `:443` and
+`:<port>`) to the Host allowlist and `https://host` / `http://host` to the Origin allowlist, and requires
+`--operator-token` (or `CODEHUD_OPERATOR_TOKEN`, ≥ 16 chars) or the server refuses to start. Remote browsers sign in
+with the operator token at `#t=`; the per-run bearer token keeps working for the owner. The cookie gets `Secure` when
+the claim arrives over HTTPS (`X-Forwarded-Proto` or an `https://` Origin). `--bind <addr>` is honoured only with
+`--allow-remote`; with Tailscale you do not need it:
+
+```sh
+# on the box that runs the agent
+pnpm start --map C:/path/app/.codehud/system.json --allow-remote mybox.tail1234.ts.net --operator-token "$(openssl rand -base64 24)"
+tailscale serve --bg 4777          # HTTPS on https://mybox.tail1234.ts.net, proxied to 127.0.0.1:4777
+# on the laptop: open https://mybox.tail1234.ts.net/#t=<operator token>
+```
+
+Never `tailscale funnel` this. The hooks and the bridge stay on the agent's machine and keep using `server.json`.

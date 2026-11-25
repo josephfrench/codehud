@@ -3,6 +3,10 @@
  * codehud local server.
  *
  *   node packages/server/src/index.ts [--map path.json] [--port 4777] [--open]
+ *        [--question-ttl 30] [--allow-remote host[:port][,host2] --operator-token <secret> [--bind 0.0.0.0]]
+ *
+ * Env: CODEHUD_PORT, CODEHUD_TOKEN, CODEHUD_HOME (dir for server.json, default ~/.codehud),
+ *      CODEHUD_QUESTION_TTL_S, CODEHUD_ASK_BURST / CODEHUD_ASK_PER_MIN, CODEHUD_OPERATOR_TOKEN
  *
  * - Serves the built HUD from packages/hud/dist
  * - Holds the current SystemMap
@@ -18,6 +22,11 @@
  * - cookie-authenticated requests must carry an exact-match Origin (or same-origin
  *   Sec-Fetch-Site); JSON content-type required on all writes; no CORS headers ever.
  * - every /api/* route except /api/health requires auth, GETs and SSE included.
+ * - per-session token buckets on questions and focus; questions expire; SSE events carry ids
+ *   and a ring buffer replays them on reconnect (Last-Event-ID); localhost / [::1] page loads
+ *   redirect to the canonical 127.0.0.1 origin so cookies live on one host.
+ * - remote mode is opt-in (--allow-remote) and needs an explicit operator token; see
+ *   docs/research/connection.md for the tailscale serve recipe.
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -42,14 +51,43 @@ const PORT = Number(args.port ?? process.env.CODEHUD_PORT ?? 4777);
 const HOST = '127.0.0.1';
 const TOKEN = process.env.CODEHUD_TOKEN ?? crypto.randomBytes(24).toString('base64url');
 const HUD_DIST = path.resolve(here, '../../hud/dist');
-const INFO_DIR = path.join(os.homedir(), '.codehud');
+const INFO_DIR = process.env.CODEHUD_HOME ? path.resolve(process.env.CODEHUD_HOME) : path.join(os.homedir(), '.codehud');
 const INFO_FILE = path.join(INFO_DIR, 'server.json');
 const MAX_BODY = 64 * 1024;
 const MAX_MAP_BODY = 4 * 1024 * 1024;
 const MAX_SSE_CLIENTS = 16;
 const MAX_PENDING_PER_SESSION = 3;
+/** Pending questions expire after this long (CLI minutes, env seconds). */
+const QUESTION_TTL_MS = args['question-ttl'] ? Number(args['question-ttl']) * 60_000 : Number(process.env.CODEHUD_QUESTION_TTL_S ?? 1800) * 1000;
+/** Token buckets: questions per session (burst, sustained per minute) and focus/notes per session (burst, per second). */
+const ASK_BURST = Number(process.env.CODEHUD_ASK_BURST ?? 5);
+const ASK_PER_SEC = Number(process.env.CODEHUD_ASK_PER_MIN ?? 4) / 60;
+const FOCUS_BURST = 60;
+const FOCUS_PER_SEC = 10;
+const SSE_RING = 500;
 const ORIGIN = `http://${HOST}:${PORT}`;
-const ALLOWED_HOSTS = new Set([`${HOST}:${PORT}`, `localhost:${PORT}`, `[::1]:${PORT}`]);
+/** Hosts a page may be loaded from; the two aliases redirect to the canonical origin. */
+const LOCAL_ALIASES = new Set([`localhost:${PORT}`, `[::1]:${PORT}`]);
+const ALLOWED_HOSTS = new Set([`${HOST}:${PORT}`, ...LOCAL_ALIASES]);
+const ALLOWED_ORIGINS = new Set([ORIGIN]);
+
+// ---- remote mode (opt-in) ----------------------------------------------------
+const REMOTE_HOSTS = String(args['allow-remote'] === true ? '' : args['allow-remote'] ?? '').split(',').map((h) => h.trim()).filter(Boolean);
+const REMOTE = REMOTE_HOSTS.length > 0;
+const OPERATOR_TOKEN = typeof args['operator-token'] === 'string' ? args['operator-token'] : process.env.CODEHUD_OPERATOR_TOKEN;
+const BIND = typeof args.bind === 'string' ? args.bind : HOST;
+if (args['allow-remote'] === true) fail('--allow-remote needs the public host name, e.g. --allow-remote mybox.tail1234.ts.net');
+if (args.bind && !REMOTE) fail('--bind is only honoured together with --allow-remote <host>');
+if (REMOTE && (!OPERATOR_TOKEN || OPERATOR_TOKEN.length < 16)) fail('remote mode needs --operator-token <at least 16 chars> (or CODEHUD_OPERATOR_TOKEN); refusing to start');
+for (const h of REMOTE_HOSTS) {
+  // "host" covers https on 443 (Host header has no port) and the server's own port; "host:port" is taken literally.
+  const bare = h.includes(':') && !h.endsWith(']') ? [h] : [h, `${h}:443`, `${h}:${PORT}`];
+  for (const x of bare) ALLOWED_HOSTS.add(x);
+  const origin = h.replace(/:443$/, '');
+  ALLOWED_ORIGINS.add(`https://${origin}`);
+  ALLOWED_ORIGINS.add(`http://${h}`);
+}
+function fail(msg: string): never { console.error(`codehud ▸ ${msg}`); process.exit(2); }
 /** Browser session ids issued in exchange for the token. */
 const sessionIds = new Set<string>();
 
@@ -65,7 +103,12 @@ const state = {
   activity: [] as ActivityItem[],
   clients: new Set<http.ServerResponse>(),
   waiters: new Map<string, Set<() => void>>(),
+  /** monotonically increasing SSE event id and the recent events for Last-Event-ID replay */
+  eventSeq: 0,
+  ring: [] as { id: number; data: string }[],
+  colorSeq: 0,
 };
+const SESSION_PALETTE = ['#4f8cff', '#3fbf8f', '#f2a93b', '#d96bd2', '#e85d5d', '#2fc6d6', '#a3d13a', '#ff8a4c'];
 
 function loadMap(file: string) {
   const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -90,11 +133,51 @@ function log(kind: ActivityItem['kind'], text: string, extra: Partial<ActivityIt
 }
 
 function broadcast(ev: ServerEvent) {
-  const payload = `data: ${JSON.stringify(ev)}\n\n`;
+  const id = ++state.eventSeq;
+  const data = JSON.stringify(ev);
+  state.ring.push({ id, data });
+  if (state.ring.length > SSE_RING) state.ring.splice(0, state.ring.length - SSE_RING);
+  const payload = `id: ${id}\ndata: ${data}\n\n`;
   for (const res of state.clients) {
     try { res.write(payload); } catch { state.clients.delete(res); }
   }
 }
+
+// ---- rate limiting -------------------------------------------------------------
+interface Bucket { tokens: number; at: number }
+const buckets = new Map<string, Bucket>();
+/** Token bucket per (kind, key). Returns 0 when allowed, else the seconds to wait. */
+function throttle(kind: 'ask' | 'focus', key: string | undefined): number {
+  const burst = kind === 'ask' ? ASK_BURST : FOCUS_BURST;
+  const rate = kind === 'ask' ? ASK_PER_SEC : FOCUS_PER_SEC;
+  const k = `${kind}:${key || 'anon'}`;
+  const now = Date.now();
+  const b = buckets.get(k) ?? { tokens: burst, at: now };
+  b.tokens = Math.min(burst, b.tokens + ((now - b.at) / 1000) * rate);
+  b.at = now;
+  if (b.tokens >= 1) { b.tokens -= 1; buckets.set(k, b); return 0; }
+  buckets.set(k, b);
+  return Math.ceil((1 - b.tokens) / rate);
+}
+setInterval(() => { const cut = Date.now() - 10 * 60_000; for (const [k, b] of buckets) if (b.at < cut) buckets.delete(k); }, 60_000).unref();
+function limited(res: Res, seconds: number, what: string): never {
+  res.setHeader('retry-after', String(seconds));
+  throw new HttpError(429, `too many ${what}; retry in ${seconds}s`);
+}
+
+// ---- question expiry -------------------------------------------------------------
+function sweepExpired() {
+  const now = Date.now();
+  for (const q of state.questions.values()) {
+    if (q.status !== 'pending' || !q.expiresAt || Date.parse(q.expiresAt) > now) continue;
+    q.status = 'expired';
+    touchSession(q.session, 'working');
+    broadcast({ type: 'answer', question: q });
+    log('answer', `expired without an answer: ${q.question.slice(0, 120)}`, { nodes: q.resolvedNodes, session: q.session });
+    wake(q.id);
+  }
+}
+setInterval(sweepExpired, Math.max(1000, Math.min(15_000, QUESTION_TTL_MS / 2))).unref();
 
 function resolveNodes(nodes?: string[], files?: (string | { path: string })[]): string[] {
   const out = new Set<string>();
@@ -139,7 +222,7 @@ function authKind(req: Req): 'bearer' | 'cookie' | null {
 /** Cookie-authenticated requests must prove they come from our own origin. */
 function sameOriginOk(req: Req) {
   const origin = req.headers.origin;
-  if (origin !== undefined) return origin === ORIGIN;
+  if (origin !== undefined) return ALLOWED_ORIGINS.has(origin);
   const sfs = req.headers['sec-fetch-site'];
   if (sfs !== undefined) return sfs === 'same-origin' || sfs === 'none';
   // Old browsers send neither; only allow safe GETs then.
@@ -216,17 +299,20 @@ async function handleApi(req: Req, res: Res, url: URL) {
   const method = req.method ?? 'GET';
   const p = url.pathname;
 
-  if (p === '/api/health') return json(res, 200, { ok: true, name: 'codehud', map: state.map?.name ?? null, pid: process.pid, browsers: state.clients.size });
+  if (p === '/api/health') return json(res, 200, { ok: true, name: 'codehud', map: state.map?.name ?? null, pid: process.pid, browsers: state.clients.size, remote: REMOTE });
 
   // Browser exchanges the fragment token for a session cookie. Same-origin only.
   if (p === '/api/session/claim' && method === 'POST') {
     if (!sameOriginOk(req)) throw new HttpError(403, 'bad origin');
     const { token } = await readJson(req);
-    if (typeof token !== 'string' || !safeEq(token, TOKEN)) throw new HttpError(401, 'bad token');
+    // Local: the per-run bearer token. Remote: the operator token (the bearer token still works for the owner).
+    const ok = typeof token === 'string' && (safeEq(token, TOKEN) || (REMOTE && !!OPERATOR_TOKEN && safeEq(token, OPERATOR_TOKEN)));
+    if (!ok) throw new HttpError(401, 'bad token');
     const sid = crypto.randomBytes(24).toString('base64url');
     sessionIds.add(sid);
     if (sessionIds.size > 32) sessionIds.delete(sessionIds.values().next().value!);
-    res.setHeader('set-cookie', `codehud_sid=${sid}; Path=/; SameSite=Strict; HttpOnly`);
+    const https = req.headers['x-forwarded-proto'] === 'https' || (req.headers.origin ?? '').startsWith('https://');
+    res.setHeader('set-cookie', `codehud_sid=${sid}; Path=/; SameSite=Strict; HttpOnly${https ? '; Secure' : ''}`);
     return json(res, 200, { ok: true });
   }
 
@@ -234,7 +320,7 @@ async function handleApi(req: Req, res: Res, url: URL) {
   if (!kind) throw new HttpError(401, 'unauthorized');
   if (kind === 'cookie' && !sameOriginOk(req)) throw new HttpError(403, 'bad origin');
 
-  if (p === '/api/events' && method === 'GET') return sse(req, res);
+  if (p === '/api/events' && method === 'GET') return sse(req, res, url);
 
   if (p === '/api/session' && method === 'GET') {
     return json(res, 200, { ok: true, map: state.map?.name ?? null, mapPath: state.mapPath, sessions: [...state.sessions.values()] });
@@ -268,6 +354,7 @@ async function handleApi(req: Req, res: Res, url: URL) {
 
   if (p === '/api/focus' && method === 'POST') {
     const body = (await readJson(req)) as FocusRequest;
+    { const wait = throttle('focus', body.session); if (wait) limited(res, wait, 'focus calls'); }
     const resolvedNodes = resolveNodes(body.nodes, body.files?.map(relToRoot));
     touchSession(body.session, 'working');
     const source = body.source === 'hook' ? 'hook' : 'agent';
@@ -280,6 +367,7 @@ async function handleApi(req: Req, res: Res, url: URL) {
   if (p === '/api/notes' && method === 'POST') {
     const { text, session } = await readJson(req);
     if (typeof text !== 'string') throw new HttpError(400, 'text required');
+    { const wait = throttle('focus', session); if (wait) limited(res, wait, 'notes'); }
     touchSession(session, 'working');
     log('note', text.slice(0, 500), { session });
     return json(res, 200, { ok: true });
@@ -290,6 +378,7 @@ async function handleApi(req: Req, res: Res, url: URL) {
     if (!body.id) throw new HttpError(400, 'id required');
     const s: AgentSession = { ...(state.sessions.get(body.id) ?? { id: body.id }), ...body, lastSeen: new Date().toISOString() } as AgentSession;
     const isNew = !state.sessions.has(s.id);
+    s.color = state.sessions.get(s.id)?.color ?? nextColor();
     state.sessions.set(s.id, s);
     broadcast({ type: 'session', session: s });
     if (isNew) log('session', `Agent session connected: ${s.label ?? s.id}${s.cwd ? ` (${s.cwd})` : ''}`, { session: s.id });
@@ -300,6 +389,7 @@ async function handleApi(req: Req, res: Res, url: URL) {
   if (p === '/api/questions' && method === 'POST') {
     const input = (await readJson(req)) as QuestionInput;
     if (typeof input.question !== 'string' || !input.question.trim()) throw new HttpError(400, 'question required');
+    { const wait = throttle('ask', input.session); if (wait) limited(res, wait, 'questions'); }
     if (input.session && [...state.questions.values()].filter((q) => q.status === 'pending' && q.session === input.session).length >= MAX_PENDING_PER_SESSION) {
       throw new HttpError(429, `session already has ${MAX_PENDING_PER_SESSION} pending questions; wait for answers first`);
     }
@@ -311,7 +401,9 @@ async function handleApi(req: Req, res: Res, url: URL) {
       createdAt: new Date().toISOString(),
       status: 'pending',
       resolvedNodes: resolveNodes(input.nodes, input.files),
+      expiresAt: new Date(Date.now() + Math.min(QUESTION_TTL_MS, Math.max(5_000, Number(input.ttlSeconds) * 1000 || QUESTION_TTL_MS))).toISOString(),
     };
+    delete (q as QuestionInput).ttlSeconds;
     q.options = q.options?.map((o) => ({ ...o, resolvedNodes: resolveNodes(o.nodes, o.files?.map(relToRoot)) }));
     state.questions.set(q.id, q);
     touchSession(q.session, 'waiting');
@@ -354,9 +446,10 @@ async function handleApi(req: Req, res: Res, url: URL) {
   throw new HttpError(404, `no route ${method} ${p}`);
 }
 
+function nextColor() { return SESSION_PALETTE[state.colorSeq++ % SESSION_PALETTE.length]; }
 function touchSession(id: string | undefined, status: AgentSession['status']) {
   if (!id) return;
-  const s = state.sessions.get(id) ?? { id, lastSeen: '' };
+  const s = state.sessions.get(id) ?? { id, lastSeen: '', color: nextColor() };
   s.lastSeen = new Date().toISOString();
   s.status = status;
   state.sessions.set(id, s);
@@ -382,7 +475,7 @@ function relToRoot(p: string | { path: string }) {
   return raw;
 }
 
-function sse(req: Req, res: Res) {
+function sse(req: Req, res: Res, url: URL) {
   if (state.clients.size >= MAX_SSE_CLIENTS) throw new HttpError(503, 'too many clients');
   res.writeHead(200, {
     'content-type': 'text/event-stream',
@@ -390,9 +483,17 @@ function sse(req: Req, res: Res) {
     connection: 'keep-alive',
     'x-accel-buffering': 'no',
   });
-  res.write(':ok\n\n');
-  const hello: ServerEvent = { type: 'hello', map: state.map, questions: [...state.questions.values()], sessions: [...state.sessions.values()], activity: state.activity.slice(-100) };
-  res.write(`data: ${JSON.stringify(hello)}\n\n`);
+  res.write(':ok\nretry: 2000\n\n');
+  // Reconnect with Last-Event-ID (browsers send it automatically): replay what was missed if the ring still has it,
+  // otherwise fall back to a full hello. A restarted server has a smaller seq, which also falls back.
+  const last = Number(req.headers['last-event-id'] ?? url.searchParams.get('lastEventId') ?? NaN);
+  const first = state.ring[0]?.id ?? state.eventSeq + 1;
+  if (Number.isInteger(last) && last >= 0 && last <= state.eventSeq && last >= first - 1) {
+    for (const e of state.ring) if (e.id > last) res.write(`id: ${e.id}\ndata: ${e.data}\n\n`);
+  } else {
+    const hello: ServerEvent = { type: 'hello', map: state.map, questions: [...state.questions.values()], sessions: [...state.sessions.values()], activity: state.activity.slice(-100) };
+    res.write(`id: ${state.eventSeq}\ndata: ${JSON.stringify(hello)}\n\n`);
+  }
   state.clients.add(res);
   const hb = setInterval(() => { try { res.write(':hb\n\n'); } catch { /* ignore */ } }, 25_000);
   req.on('close', () => { clearInterval(hb); state.clients.delete(res); });
@@ -442,6 +543,11 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', ORIGIN);
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
     if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'method not allowed');
+    if (LOCAL_ALIASES.has(req.headers.host!)) {
+      // One cookie host: localhost / [::1] page loads move to 127.0.0.1 (the fragment survives a redirect).
+      res.writeHead(307, { location: ORIGIN + url.pathname + url.search, 'cache-control': 'no-store' });
+      return res.end();
+    }
     return serveStatic(req, res, url.pathname);
   } catch (e: any) {
     const status = e instanceof HttpError ? e.status : 500;
@@ -453,7 +559,7 @@ const server = http.createServer(async (req, res) => {
 
 server.headersTimeout = 15_000;
 server.requestTimeout = 60_000;
-server.listen(PORT, HOST, () => {
+server.listen(PORT, BIND, () => {
   const info: ServerInfo = { version: 1, port: PORT, host: HOST, url: ORIGIN, token: TOKEN, pid: process.pid, startedAt: new Date().toISOString() };
   fs.mkdirSync(INFO_DIR, { recursive: true });
   // Atomic write; mode is a no-op on Windows where the profile ACL protects the file.
@@ -463,6 +569,7 @@ server.listen(PORT, HOST, () => {
   if (args.map) { try { loadMap(path.resolve(String(args.map))); } catch (e: any) { console.error(e.message); } }
   else console.log('codehud ▸ no map loaded; pass --map <system.json>, call hud_load_map from the agent, or open /demo');
   const url = `${ORIGIN}/#t=${TOKEN}`;
+  if (REMOTE) console.log(`codehud ▸ remote mode: accepting hosts ${REMOTE_HOSTS.join(', ')} on ${BIND}:${PORT}; remote browsers sign in with the operator token`);
   console.log(`codehud ▸ open ${url}`);
   console.log(`         (the fragment is a one-time sign-in; details in ${INFO_FILE})`);
   if (args.open) openBrowser(url);
