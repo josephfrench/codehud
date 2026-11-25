@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "name": "Acme (overlaid)",
+  "lanes": { "shared": { "mergeInto": "api" } },
+  "nodes": {
+    "module:packages/shared/src/*": { "summary": "Shared types used by web and api" },
+    "module:packages/api/src/legacy.ts": { "hide": true }
+  },
+  "addNodes": [{ "id": "external:bank", "label": "Bank API", "kind": "external", "layer": "external" }],
+  "addEdges": [{ "from": "module:packages/api/src/index.ts", "to": "external:bank", "kind": "calls", "label": "ACH" }]
+}

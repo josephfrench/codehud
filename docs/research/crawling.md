@@ -150,10 +150,61 @@ with `validateSystemMap`. The schema package should also publish a JSON Schema g
 hand-written or agent-written maps can be validated outside Node. The agent never edits node ids; it edits
 labels, lanes, summaries, parents and edges, which is exactly what the overlay format allows.
 
-## 8. v0 status
+## 8. The overlay file
 
-`packages/crawler` implements stages 1-3 (Astro, Next app+pages, SvelteKit, Remix, Express/Hono-style
-routers; drizzle/prisma/wrangler; ~70 catalogued externals) with no dependencies. Gaps, by value: no overlay
-file; no `guards`/`emits`/`listens`; regex imports miss barrel re-exports; `fetch` to a variable base URL is
-invisible; name-only lanes (crm/esign become lanes); monorepos are flattened; rollup membership follows
-fan-in, so a popular file can swap in and out of view.
+`.codehud/map.overrides.json` in the crawled repo is the committed, human- or agent-edited correction layer.
+The crawler applies it after the deterministic passes on every run, so the output is always
+`deterministic(repo) ⊕ overlay`, and a PR that touches the overlay is reviewable like any other. Start one
+with `pnpm crawl <repo> --write-overlay-template`; `--no-overlay` shows the raw crawl.
+
+```jsonc
+{
+  "version": 1,
+  "name": "Acme Portal",                       // optional map name / description
+  "lanes": {
+    "crm":   { "mergeInto": "checkout" },       // fold a lane into another
+    "esign": { "label": "E-sign" },             // relabel
+    "admin": { "hide": true }                   // drop the lane; its nodes become lane-less
+  },
+  "addLanes": [{ "id": "billing", "label": "Billing" }],
+  "laneOrder": ["checkout", "auth", "billing"],
+  "nodes": {                                    // keys are node ids; a trailing * is a prefix match
+    "route:src/pages/api/webhooks/*": { "lane": "billing" },
+    "module:src/lib/legacy.ts":      { "hide": true },       // children reparent, edges lift to the parent
+    "table:users": { "summary": "One row per human", "tags": ["pii"] },
+    "service:src/lib/crm.ts": { "parent": "module:src/lib/checkout/", "kind": "service", "layer": "domain" }
+  },
+  "addNodes": [{ "id": "external:bank", "label": "Bank API", "kind": "external", "layer": "external" }],
+  "addEdges": [{ "from": "service:src/lib/crm.ts", "to": "external:bank", "kind": "calls", "label": "ACH" }],
+  "removeEdges": ["imports:a->b", { "from": "a", "to": "b" }]
+}
+```
+
+Node ids are never edited through the overlay (they are what keeps the map spatially stable); everything
+else is. Unknown ids are reported as warnings on stderr, never errors, so a stale overlay degrades gracefully.
+
+## 9. v1 status: adapters and coverage
+
+`packages/crawler` is now a pipeline plus adapters (`src/adapters/*`). Each adapter detects itself from the
+manifests and files, may `prepare` cross-file tables (router configs), `classify` files, `scan` the repo for
+persistence / infrastructure / externals, and contribute `edges`. The import graph comes from the TypeScript
+compiler API (parse-only, `tsconfig` `paths` and `baseUrl` honoured) with the regex scanner as a fallback;
+Python has its own import resolver. One runtime dependency: `typescript`.
+
+| Area | Adapters | What becomes nodes / edges |
+|---|---|---|
+| Web frameworks | astro (`src/pages`), next (app + pages), sveltekit, remix / React Router v7 config, react-router (`createBrowserRouter`, `<Route>`), tanstack-router (file routes), vue + nuxt (pages, `server/api`, middleware, composables, Pinia), angular (suffix conventions, `Routes` arrays incl. `loadChildren`, guards, NgRx / signal stores) | pages, routes, components, middleware, stores; `fetch` / `$fetch` / `HttpClient` / axios → `calls`; `href` → `navigates` |
+| Servers | express / hono / fastify / koa routers, nestjs (controllers, providers, guards, Bull processors, `@OnEvent`, `@Cron`, gateways, resolvers) | routes under their module, services, jobs, queues, events |
+| Persistence | drizzle, prisma, mongoose, typeorm, sequelize, dynamodb (SDK usage + env refs), supabase (migrations + client usage + storage), Django ORM, SQLAlchemy | tables (with columns) under a store; `reads` / `writes` from usage |
+| Infrastructure | wrangler, terraform (`.tf` resources, env refs, event source mappings, API integrations), aws-cdk (constructs, grants, event sources, routes, `entry` files), serverless.yml, SAM / CloudFormation (events, policies, env), vercel.json (crons, rewrites, `api/`), netlify, docker-compose | tables, stores, caches, queues, functions (which absorb their handler files), APIs and routes, edge, externals; declared wiring as edges |
+| Externals | ~70 npm packages, PyPI packages, env-var-configured systems (`CRM_URL` + `CRM_API_KEY`) | `external` nodes with `calls` edges from the files that use them |
+| Python | FastAPI / Flask / Django routes, Celery tasks, `requirements` / `pyproject` deps | routers with route children, jobs, stores, externals |
+
+Lanes: route and directory vocabulary first; a workspace with no URL vocabulary (codehud itself) gets one
+lane per package. `--watch` re-crawls on change and pushes to the running server. Safety: the crawler reads
+files and nothing else; `guard.ts` makes any CommonJS load from under the crawl root throw while a crawl is
+active, and the test suite crawls a booby-trapped repo (a `main` that writes a sentinel, `postinstall`,
+`tsconfig` extending a `.js`) and asserts it never ran.
+
+Still open: `guards` edges from middleware matchers; `fetch` against a variable base URL; symbol-level
+nodes; tree-sitter for Go / Java / C#; the AI summarisation pass that writes the overlay.

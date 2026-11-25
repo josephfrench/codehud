@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","baseUrl":"./","paths":{"@app/*":["src/app/*"]}}}

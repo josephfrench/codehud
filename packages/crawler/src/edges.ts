@@ -1,33 +1,9 @@
-// TODO: import from '@codehud/schema' once the workspace is installed.
+/** Edge extraction: the generic signals (imports, HTTP calls, navigation) plus each adapter's own. */
 import type { EdgeKind, SysNode } from '../../schema/src/index.ts';
-import { ENV_VAR_RE, envPrefix } from './env-externals.ts';
-import { externalFor } from './framework.ts';
-import { stripComments } from './fs.ts';
+import { HTTP_CLIENT_IDENTS } from './adapters/generic.ts';
+import { vercelCronEdges } from './adapters/vercel.ts';
 import { isDynamicSegment } from './lanes.ts';
-import type { Confidence, Draft, EdgeDraft, ImportRecord, ResolvedOptions, SourceFile } from './types.ts';
-import type { PersistenceResult } from './persistence.ts';
-
-export interface RouteEntry {
-  nodeId: string;
-  kind: 'page' | 'route';
-  segments: string[];
-  rest: boolean;
-}
-
-export interface EdgeContext {
-  sources: SourceFile[];
-  importsOf: Map<string, ImportRecord[]>;
-  /** file -> owning node id */
-  owner: Map<string, string>;
-  nodes: Map<string, SysNode>;
-  routes: RouteEntry[];
-  persistence: PersistenceResult;
-  /** external node ids present in the map */
-  externals: Set<string>;
-  /** env-var prefix (e.g. CRM) -> external node id */
-  envExternals: Map<string, string>;
-  opts: ResolvedOptions;
-}
+import type { Adapter, Confidence, EdgeContext, EdgeDraft, EdgeSink, RouteEntry } from './types.ts';
 
 const RANK: Record<Confidence, number> = { low: 0, medium: 1, high: 2 };
 
@@ -62,7 +38,7 @@ export function matchRoute(routes: RouteEntry[], path: string, kind?: 'page' | '
   return best?.entry;
 }
 
-class EdgeBag {
+export class EdgeBag implements EdgeSink {
   readonly edges = new Map<string, EdgeDraft>();
   private nodes: Map<string, SysNode>;
   private minConfidence: Confidence;
@@ -103,9 +79,9 @@ class EdgeBag {
 }
 
 const FETCH_RE = /\bfetch\(\s*(?:(['"])([^'"\n]*)\1|`([^`\n]*)`)/g;
-const NAV_RE = /(?:href=|redirect\(\s*|navigate\(\s*|goto\(\s*|push\(\s*|replace\(\s*|href:\s*)(?:(['"])(\/[^'"\n]*)\1|`(\/[^`\n]*)`)/g;
-const ENV_BINDING_RE = /\benv\.([A-Z][A-Z0-9_]{1,40})\b/g;
-const PRISMA_RE = /\b(?:prisma|db|client|tx|ctx\.db|ctx\.prisma)\.(\w+)\.(findMany|findFirst|findUnique|findUniqueOrThrow|findFirstOrThrow|count|aggregate|groupBy|create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)\(/g;
+/** axios.get('/x'), http.post<T>('/x'), $fetch('/x'), useFetch('/x'), ky.get('x') ... */
+const CLIENT_CALL_RE = /\b(\$fetch|useFetch|useLazyFetch|ofetch|axios|ky|got|http|https|api|client|httpClient|apiClient|request|fetcher|instance)(?:\.(get|post|put|patch|delete|head|options))?(?:<[^>()]*>)?\(\s*(?:(['"])(\/[^'"\n]*)\3|`([^`\n]*)`)/g;
+const NAV_RE = /(?:href=|redirect\(\s*|navigate\(\s*|goto\(\s*|push\(\s*|replace\(\s*|href:\s*|navigateTo\(\s*|routerLink=|to=)(?:(['"])(\/[^'"\n]*)\1|`(\/[^`\n]*)`)/g;
 
 function templateToPath(tpl: string): string {
   return tpl.replace(/^\$\{[^}]*\}/, '').replace(/\$\{[^}]*\}/g, '*');
@@ -116,11 +92,12 @@ function methodNear(text: string, index: number): string {
   return /method\s*:\s*['"](\w+)['"]/i.exec(window)?.[1]?.toUpperCase() ?? 'GET';
 }
 
-export function buildEdges(ctx: EdgeContext): EdgeDraft[] {
+export function buildEdges(ctx: EdgeContext, adapters: Adapter[]): EdgeDraft[] {
   const bag = new EdgeBag(ctx.nodes, ctx.opts.lowConfidenceEdges ? 'low' : 'medium');
   const nodeOf = (file: string) => ctx.owner.get(file);
-  const idents = ctx.persistence.tableIdents;
-  const identRe = idents.size ? new RegExp(`\\b(${[...idents.keys()].map((k) => k.replace(/\$/g, '\\$')).join('|')})\\b`) : undefined;
+  const serverIdents = new Set<string>();
+  // identifiers that declare server routes in this repo must not count as HTTP clients
+  for (const n of ctx.nodes.values()) if (typeof n.meta?.declaredIn === 'string') serverIdents.add(n.meta.declaredIn);
 
   for (const file of ctx.sources) {
     const from = nodeOf(file.rel);
@@ -128,97 +105,54 @@ export function buildEdges(ctx: EdgeContext): EdgeDraft[] {
     const fromNode = ctx.nodes.get(from)!;
     const text = file.text;
 
-    // imports -> imports / renders / calls(external)
+    // imports -> imports / renders
     for (const imp of ctx.importsOf.get(file.rel) ?? []) {
-      if (imp.file) {
-        const to = nodeOf(imp.file);
-        if (!to || to === from) continue;
-        const toNode = ctx.nodes.get(to);
-        if (!toNode) continue;
-        const fromRenders = fromNode.kind === 'page' || fromNode.kind === 'component' || /\.(svelte|astro|vue|tsx|jsx)$/.test(file.rel);
-        const renders = fromRenders && toNode.kind === 'component';
-        bag.add(from, to, renders ? 'renders' : 'imports', 'high', 'import');
-      } else if (imp.pkg) {
-        const def = externalFor(imp.pkg);
-        if (def && ctx.externals.has(`external:${def.id}`)) bag.add(from, `external:${def.id}`, 'calls', 'high', 'dep', imp.pkg);
-      }
+      if (!imp.file) continue;
+      const to = nodeOf(imp.file);
+      if (!to || to === from) continue;
+      const toNode = ctx.nodes.get(to);
+      if (!toNode) continue;
+      const fromRenders = fromNode.kind === 'page' || fromNode.kind === 'component' || /\.(svelte|astro|vue|tsx|jsx)$/.test(file.rel);
+      const renders = fromRenders && toNode.kind === 'component';
+      bag.add(from, to, renders ? 'renders' : 'imports', 'high', 'import');
     }
 
-    // fetch('/api/...') -> calls route
-    for (const m of text.matchAll(FETCH_RE)) {
-      const raw = m[2] ?? (m[3] !== undefined ? templateToPath(m[3]) : undefined);
-      if (!raw || !raw.startsWith('/')) continue;
-      const hit = matchRoute(ctx.routes, raw, 'route');
-      if (!hit) continue;
-      const method = methodNear(text, m.index!);
-      const label = `${method} ${'/' + hit.segments.join('/')}`;
-      bag.add(from, hit.nodeId, 'calls', m[2] !== undefined ? 'high' : 'medium', 'fetch', label);
-    }
-
-    // href="/x" / redirect('/x') -> navigates page
-    if (fromNode.kind === 'page' || fromNode.kind === 'component' || fromNode.kind === 'middleware') {
-      for (const m of text.matchAll(NAV_RE)) {
+    if (file.ext !== 'py') {
+      // fetch('/api/...') -> calls route
+      for (const m of text.matchAll(FETCH_RE)) {
         const raw = m[2] ?? (m[3] !== undefined ? templateToPath(m[3]) : undefined);
-        if (!raw || raw.startsWith('//') || /\.[a-z0-9]{2,5}$/i.test(raw)) continue;
-        const hit = matchRoute(ctx.routes, raw, 'page');
-        if (hit) bag.add(from, hit.nodeId, 'navigates', 'medium', 'href');
+        if (!raw || !raw.startsWith('/')) continue;
+        const hit = matchRoute(ctx.routes, raw, 'route');
+        if (!hit) continue;
+        const method = methodNear(text, m.index!);
+        const label = `${method} ${'/' + hit.segments.join('/')}`;
+        bag.add(from, hit.nodeId, 'calls', m[2] !== undefined ? 'high' : 'medium', 'fetch', label);
+      }
+      // http client libraries -> calls route
+      for (const m of text.matchAll(CLIENT_CALL_RE)) {
+        const ident = m[1]!;
+        if (serverIdents.has(ident) || (!HTTP_CLIENT_IDENTS.has(ident) && !/^(useFetch|useLazyFetch)$/.test(ident))) continue;
+        const raw = m[4] ?? (m[5] !== undefined ? templateToPath(m[5]) : undefined);
+        if (!raw || !raw.startsWith('/')) continue;
+        const hit = matchRoute(ctx.routes, raw, 'route');
+        if (!hit) continue;
+        const method = (m[2] ?? methodNear(text, m.index!)).toUpperCase();
+        bag.add(from, hit.nodeId, 'calls', m[4] !== undefined ? 'high' : 'medium', ident === '$fetch' || ident.startsWith('useFetch') ? 'nuxt-fetch' : 'http-client', `${method} /${hit.segments.join('/')}`);
+      }
+      // href="/x" / redirect('/x') -> navigates page
+      if (fromNode.kind === 'page' || fromNode.kind === 'component' || fromNode.kind === 'middleware') {
+        for (const m of text.matchAll(NAV_RE)) {
+          const raw = m[2] ?? (m[3] !== undefined ? templateToPath(m[3]) : undefined);
+          if (!raw || raw.startsWith('//') || /\.[a-z0-9]{2,5}$/i.test(raw)) continue;
+          const hit = matchRoute(ctx.routes, raw, 'page');
+          if (hit) bag.add(from, hit.nodeId, 'navigates', 'medium', 'href');
+        }
       }
     }
 
-    // drizzle table access (a file may both read and write a table: emit both)
-    if (identRe && identRe.test(text)) {
-      const touched = new Map<string, Set<EdgeKind>>();
-      const mark = (ident: string, kind: EdgeKind) => {
-        const id = idents.get(ident);
-        if (!id) return;
-        (touched.get(id) ?? touched.set(id, new Set()).get(id)!).add(kind);
-      };
-      for (const m of text.matchAll(/\.(from|leftJoin|innerJoin|rightJoin|fullJoin)\(\s*(\w+)/g)) mark(m[2]!, 'reads');
-      for (const m of text.matchAll(/\bquery\.(\w+)\.(?:findFirst|findMany)\b/g)) mark(m[1]!, 'reads');
-      for (const m of text.matchAll(/\.(insert|update|delete)\(\s*(\w+)\s*\)/g)) mark(m[2]!, 'writes');
-      for (const imp of ctx.importsOf.get(file.rel) ?? []) for (const n of imp.names) if (idents.has(n) && !touched.has(idents.get(n)!)) mark(n, 'depends');
-      for (const [id, kinds] of touched) {
-        if (ctx.nodes.get(id)?.files?.[0]?.path === file.rel) continue; // the schema file itself
-        for (const kind of kinds) bag.add(from, id, kind, kind === 'depends' ? 'low' : 'high', 'drizzle', kind === 'depends' ? 'references' : undefined);
-      }
-    }
-
-    // env-configured externals: env.CRM_URL / env.CRM_API_KEY -> external node for CRM
-    if (ctx.envExternals.size && !/(^|\/)env\.[cm]?[jt]s$/.test(file.rel)) {
-      for (const m of stripComments(text).matchAll(ENV_VAR_RE)) {
-        if (/_(MODE|REGION|ENABLED|FLAG)$/.test(m[1]!)) continue; // toggles are configuration, not calls
-        const prefix = envPrefix(m[1]!);
-        const to = prefix && ctx.envExternals.get(prefix);
-        if (to) bag.add(from, to, 'calls', 'medium', 'env', m[1]);
-      }
-    }
-
-    // prisma model access
-    if (ctx.persistence.prismaModels.size) {
-      for (const m of text.matchAll(PRISMA_RE)) {
-        const id = ctx.persistence.prismaModels.get(m[1]!);
-        if (!id) continue;
-        const kind: EdgeKind = /^(find|count|aggregate|groupBy)/.test(m[2]!) ? 'reads' : 'writes';
-        bag.add(from, id, kind, 'high', 'prisma');
-      }
-    }
-
-    // Worker bindings: env.DB / env.KV ...
-    if (ctx.persistence.bindings.size) {
-      for (const m of text.matchAll(ENV_BINDING_RE)) {
-        const b = ctx.persistence.bindings.get(m[1]!);
-        if (!b) continue;
-        let kind: EdgeKind = 'calls';
-        if (b.type === 'kv' || b.type === 'r2') {
-          const uses = text.slice(m.index!, m.index! + 80);
-          kind = /\.(put|delete)\(/.test(uses) ? 'writes' : /\.(get|list|head|getWithMetadata)\(/.test(uses) ? 'reads' : 'calls';
-        } else if (b.type === 'queue') kind = 'emits';
-        bag.add(from, b.id, kind, 'medium', 'binding', `binding ${m[1]}`);
-      }
-    }
+    for (const a of adapters) a.edges?.(file, from, ctx, bag);
   }
 
+  vercelCronEdges({ drafts: [...ctx.nodes.values()].map((n) => ({ ...n, ownedFiles: [] })) }, ctx.routes, bag);
   return [...bag.edges.values()].sort((a, b) => a.id!.localeCompare(b.id!));
 }
-
-export type { Draft };

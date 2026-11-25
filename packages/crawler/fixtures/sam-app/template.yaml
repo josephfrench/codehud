@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    CodeUri: src/
+Resources:
+  Api:
+    Type: AWS::Serverless::HttpApi
+  GetItemFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: get.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ItemsTable
+      Environment:
+        Variables:
+          ITEMS_TABLE: !Ref ItemsTable
+      Events:
+        GetItem:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /items/{id}
+            Method: GET
+  PutItemFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: put.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ItemsTable
+      Events:
+        PutItem:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /items
+            Method: POST
+  ItemsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: String
+  ItemsBucket:
+    Type: AWS::S3::Bucket

@@ -22,11 +22,23 @@ const FRAMEWORK_DEPS: [string, Framework][] = [
   ['hono', 'hono'],
   ['fastify', 'fastify'],
   ['koa', 'koa'],
+  ['@angular/core', 'angular'],
+  ['nuxt', 'nuxt'],
+  ['vue', 'vue'],
+  ['react-router', 'react-router'],
+  ['react-router-dom', 'react-router'],
+  ['@tanstack/react-router', 'tanstack-router'],
+  ['@tanstack/router-plugin', 'tanstack-router'],
+  ['@nestjs/core', 'nest'],
+  ['aws-cdk-lib', 'cdk'],
+  ['serverless', 'serverless'],
+  ['react', 'react'],
   ['vite', 'vite'],
 ];
 
-const SERVER_FRAMEWORKS = new Set<Framework>(['express', 'hono', 'fastify', 'koa']);
-const UI_LIBS = ['svelte', 'react', 'vue', 'preact', 'solid-js', 'lit'];
+const SERVER_FRAMEWORKS = new Set<Framework>(['express', 'hono', 'fastify', 'koa', 'nest']);
+const FRONTEND_FRAMEWORKS = new Set<Framework>(['angular', 'vue', 'nuxt', 'react-router', 'tanstack-router']);
+const UI_LIBS = ['svelte', 'react', 'vue', 'preact', 'solid-js', 'lit', '@angular/core'];
 
 export function detectFrameworks(deps: Record<string, string>): Framework[] {
   const out: Framework[] = [];
@@ -38,6 +50,7 @@ function roleOf(dir: string, deps: Record<string, string>, frameworks: Framework
   const last = dir.split('/').pop() ?? '';
   if (frameworks.some((f) => SERVER_FRAMEWORKS.has(f))) return 'server';
   if (/^(server|api|backend|worker|workers|gateway)$/i.test(last)) return 'server';
+  if (frameworks.some((f) => FRONTEND_FRAMEWORKS.has(f)) && !frameworks.includes('nuxt')) return 'frontend';
   const hasUi = UI_LIBS.some((u) => u in deps);
   if (hasUi && (frameworks.includes('vite') || /^(hud|web|ui|client|frontend|app|www|site)$/i.test(last))) return 'frontend';
   return 'library';

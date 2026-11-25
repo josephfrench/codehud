@@ -1,0 +1,11 @@
+[project]
+name = "orders-service"
+version = "0.1.0"
+dependencies = [
+  "fastapi>=0.115",
+  "sqlalchemy>=2.0",
+  "celery>=5.4",
+  "stripe>=11.0",
+  "psycopg[binary]>=3.2",
+  "redis>=5.0",
+]

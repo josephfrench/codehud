@@ -68,7 +68,52 @@ export function resolveLanes(hints: (string | undefined)[], maxLanes: number): L
   };
 }
 
-const VOTING_KINDS = new Set(['page', 'component', 'module', 'service', 'route', 'table', 'job', 'function', 'external', 'store', 'queue']);
+/** `@codehud/schema` -> `schema`; `packages/hud` -> `hud`. */
+export function packageLaneId(name: string, dir: string): string {
+  const base = (name.includes('/') ? name.split('/').pop()! : name) || dir.split('/').pop() || 'root';
+  const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return slug || 'root';
+}
+
+/**
+ * Lanes for a workspace without URL vocabulary: one lane per workspace package that owns nodes.
+ * Returns undefined when the repo is not a multi-package workspace. Kept lanes are ordered by
+ * node count, capped, tail collapsed into `other` like route lanes.
+ */
+export function packageLanes(
+  nodes: SysNode[],
+  packages: { dir: string; name: string }[],
+  maxLanes: number,
+): { lanes: Lane[]; laneOfNode: Map<string, string> } | undefined {
+  const workspace = packages.filter((p) => p.dir);
+  if (workspace.length < 2) return undefined;
+  const laneOfNode = new Map<string, string>();
+  const counts = new Map<string, number>();
+  const ids = new Map<string, { id: string; label: string; description: string }>();
+  for (const p of workspace) ids.set(p.dir, { id: packageLaneId(p.name, p.dir), label: laneLabel(packageLaneId(p.name, p.dir)), description: p.name });
+  for (const n of nodes) {
+    const path = n.files?.[0]?.path;
+    if (!path) continue;
+    let best: { dir: string } | undefined;
+    for (const p of workspace) if ((path === p.dir || path.startsWith(p.dir + '/')) && (!best || p.dir.length > best.dir.length)) best = p;
+    if (!best) continue;
+    const lane = ids.get(best.dir)!.id;
+    laneOfNode.set(n.id, lane);
+    counts.set(lane, (counts.get(lane) ?? 0) + 1);
+  }
+  if (counts.size < 2) return undefined;
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([id]) => id);
+  const kept = ranked.length > maxLanes ? ranked.slice(0, maxLanes - 1) : ranked;
+  const keptSet = new Set(kept);
+  const byId = new Map([...ids.values()].map((l) => [l.id, l]));
+  // lanes in workspace (package) order, not by count, so the map reads like the repo
+  const lanes: Lane[] = [...ids.values()].filter((l) => keptSet.has(l.id)).map((l) => ({ id: l.id, label: l.label, description: l.description }));
+  if (kept.length < ranked.length) lanes.push({ id: 'other', label: 'Other', description: `Collapsed packages: ${ranked.slice(kept.length).map((id) => byId.get(id)?.description ?? id).join(', ')}` });
+  for (const [id, lane] of laneOfNode) if (!keptSet.has(lane)) laneOfNode.set(id, 'other');
+  return { lanes, laneOfNode };
+}
+
+const VOTING_KINDS = new Set(['page', 'component', 'module', 'service', 'route', 'table', 'job', 'function', 'external', 'store', 'queue', 'event', 'cache', 'app', 'config']);
 
 /**
  * Fill lanes for nodes that have none: a node adopts the lane of its neighbours when they

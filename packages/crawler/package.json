@@ -1,8 +1,8 @@
 {
   "name": "@codehud/crawler",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
-  "description": "Turns a JS/TS web-app repository into a codehud SystemMap (heuristic v0).",
+  "description": "Turns a repository into a codehud SystemMap by reading it (never running it): JS/TS web frameworks, Angular, Vue/Nuxt, React routers, NestJS, ORMs, AWS/GCP/Azure infra, Python.",
   "type": "module",
   "bin": {
     "codehud-crawl": "./src/cli.ts"
@@ -12,9 +12,11 @@
   },
   "scripts": {
     "crawl": "node src/cli.ts",
-    "self": "node src/cli.ts ../.. --out examples/self.system.json"
+    "self": "node src/cli.ts ../.. --out examples/self.system.json",
+    "test": "node --test test/"
   },
   "dependencies": {
-    "@codehud/schema": "workspace:*"
+    "@codehud/schema": "workspace:*",
+    "typescript": "^5.9.0"
   }
 }

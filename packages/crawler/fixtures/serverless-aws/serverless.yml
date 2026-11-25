@@ -1,0 +1,43 @@
+service: orders-api
+provider:
+  name: aws
+  runtime: nodejs20.x
+  environment:
+    ORDERS_TABLE: !Ref OrdersTable
+    ORDERS_QUEUE_URL: !Ref OrdersQueue
+functions:
+  createOrder:
+    handler: src/handlers/orders.create
+    events:
+      - httpApi: 'POST /orders'
+  getOrder:
+    handler: src/handlers/orders.get
+    events:
+      - httpApi:
+          path: /orders/{id}
+          method: get
+  processOrder:
+    handler: src/handlers/process.main
+    events:
+      - sqs:
+          arn: !GetAtt OrdersQueue.Arn
+  nightly:
+    handler: src/handlers/nightly.main
+    events:
+      - schedule: rate(1 day)
+resources:
+  Resources:
+    OrdersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: orders
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+    OrdersQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: orders
