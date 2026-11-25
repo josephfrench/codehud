@@ -28,7 +28,9 @@ class HudState {
   showHelp = $state(false);
   showActivity = $state(false);
   /** 'focus' shows only the relevant slice; 'map' is the whole layer x lane grid */
-  view = $state<'focus' | 'map' | 'docs'>('focus');
+  view = $state<'play' | 'map' | 'docs'>('play');
+  /** how the map explorer draws: the original layer x lane grid, or the 3D scene */
+  mapStyle = $state<'grid' | 'scene'>((() => { try { return (localStorage.getItem('codehud-map-style') as 'grid' | 'scene') || 'grid'; } catch { return 'grid'; } })());
   /** question drawer expanded (focus view) */
   questionOpen = $state(true);
   /** screen point the specifics modal grows out of */
@@ -260,6 +262,10 @@ class HudState {
     else this.requestFit(null);
   }
   toggleMode() { this.mode === 'follow' ? this.roam() : this.follow(); }
+  toggleMapStyle() {
+    this.mapStyle = this.mapStyle === 'grid' ? 'scene' : 'grid';
+    try { localStorage.setItem('codehud-map-style', this.mapStyle); } catch { /* ignore */ }
+  }
   toggleTheme() {
     this.theme = this.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = this.theme;

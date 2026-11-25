@@ -121,7 +121,9 @@
   }
   function onCardClick(e: MouseEvent, id: string) {
     e.stopPropagation();
-    hud.select(hud.selected === id ? null : id);
+    if (hud.selected === id) { hud.select(null); return; }
+    const r = (e.currentTarget as Element).getBoundingClientRect();
+    hud.openBlowout(id, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
   }
   function onCardDbl(e: MouseEvent, id: string) {
     e.stopPropagation();

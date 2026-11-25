@@ -20,7 +20,7 @@
     </span>
   {/if}
   <button class="crumb docs" onclick={() => (hud.view = 'docs')} title="Files and docs (d)">≣ docs</button>
-  <button class="crumb docs" onclick={() => (hud.view = 'focus')} title="Back to the agent (m)">◎ play</button>
+  <button class="crumb docs" onclick={() => (hud.view = 'play')} title="Back to the agent (m)">◎ play</button>
   <span class="hint">
     {#if hud.current}<kbd>Esc</kbd> up{:else}<kbd>←</kbd><kbd>→</kbd> lanes{/if}
     <kbd>?</kbd> keys

@@ -50,11 +50,17 @@
       {hud.mode === 'follow' ? '● following agent' : '○ free roam'}
     </button>
     <span class="views">
-      <button class="ghost" class:on={hud.view === 'focus'} onclick={() => (hud.view = 'focus')} title="Focus graph">focus</button>
+      <button class="ghost" class:on={hud.view === 'play'} onclick={() => (hud.view = 'play')} title="Follow the agent">play</button>
       <button class="ghost" class:on={hud.view === 'map'} onclick={() => (hud.view = 'map')} title="Whole map (m)">map</button>
       <button class="ghost" class:on={hud.view === 'docs'} onclick={() => (hud.view = 'docs')} title="Files and docs (d)">docs</button>
     </span>
-    <button class="ghost" class:on={hud.showActivity} onclick={() => (hud.showActivity = !hud.showActivity)} title="Toggle activity (a)">log</button>
+    {#if hud.view === 'map'}
+      <span class="views">
+        <button class="ghost" class:on={hud.mapStyle === 'grid'} onclick={() => { if (hud.mapStyle !== 'grid') hud.toggleMapStyle(); }} title="Layer x lane grid (g)">grid</button>
+        <button class="ghost" class:on={hud.mapStyle === 'scene'} onclick={() => { if (hud.mapStyle !== 'scene') hud.toggleMapStyle(); }} title="3D scene (g)">3D</button>
+      </span>
+    {/if}
+    <button class="ghost" class:on={hud.showActivity} onclick={() => (hud.showActivity = !hud.showActivity)} title="Toggle activity (l)">log</button>
     <button class="ghost" onclick={() => hud.toggleTheme()} title="Toggle theme (t)">{hud.theme === 'dark' ? '☾' : '☀'}</button>
     <button class="ghost" onclick={() => (hud.showHelp = !hud.showHelp)} title="Keyboard help (?)">?</button>
     <span class="conn" class:ok={hud.connected} title={hud.connected ? 'connected' : 'disconnected'}></span>

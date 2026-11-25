@@ -28,20 +28,17 @@
       <h2>Keys</h2>
       <table>
         <tbody>
-          <tr><td><kbd>↵</kbd></td><td>open the selected node (its children)</td></tr>
-          <tr><td><kbd>Esc</kbd> / <kbd>↑</kbd></td><td>deselect, then zoom out to the parent</td></tr>
-          <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>swipe between sibling nodes (zoomed in) or swim lanes (top level)</td></tr>
-          <tr><td><kbd>1</kbd>…<kbd>9</kbd></td><td>answer the pending question with that option</td></tr>
-          <tr><td><kbd>f</kbd></td><td>toggle follow-the-agent / free roam</td></tr>
-          <tr><td><kbd>/</kbd></td><td>jump to a node by name</td></tr>
-          <tr><td><kbd>i</kbd></td><td>toggle import / dependency edges</td></tr>
-          <tr><td><kbd>a</kbd></td><td>toggle the activity trail</td></tr>
-          <tr><td><kbd>t</kbd></td><td>toggle dark / light theme</td></tr>
-          <tr><td><kbd>m</kbd></td><td>toggle focus view / whole map</td></tr>
-          <tr><td><kbd>d</kbd></td><td>docs: project files with markdown preview</td></tr>
-          <tr><td><kbd>q</kbd></td><td>collapse / expand the question drawer</td></tr>
-          <tr><td>wheel / drag</td><td>zoom / pan (switches to free roam)</td></tr>
-          <tr><td>double-click</td><td>open a node</td></tr>
+          <tr><td><kbd>1</kbd>…<kbd>9</kbd></td><td>preview that answer on the stage; press again or <kbd>↵</kbd> to confirm</td></tr>
+          <tr><td>click · 2× · 3×</td><td>centre · specifics card · focus (play) or open (map)</td></tr>
+          <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>steer the camera · <kbd>Q</kbd><kbd>E</kbd> orbit · <kbd>R</kbd><kbd>F</kbd> tilt · <kbd>0</kbd> reset</td></tr>
+          <tr><td>drag · right-drag · wheel</td><td>pan · orbit · zoom</td></tr>
+          <tr><td><kbd>Tab</kbd></td><td>target the next resource; <kbd>↵</kbd> specifics, <kbd>X</kbd> focus</td></tr>
+          <tr><td><kbd>m</kbd> <kbd>d</kbd></td><td>map explorer · docs</td></tr>
+          <tr><td><kbd>g</kbd></td><td>map style: grid or 3D</td></tr>
+          <tr><td><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></td><td>map: siblings or lanes, up a level, open the selected node</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>close the card, clear the preview, or go up a level</td></tr>
+          <tr><td><kbd>c</kbd> <kbd>l</kbd> <kbd>i</kbd> <kbd>t</kbd></td><td>collapse dialogue · log · import edges · theme</td></tr>
+          <tr><td><kbd>Shift+F</kbd> <kbd>/</kbd></td><td>follow or free roam · jump to a node</td></tr>
         </tbody>
       </table>
       <p class="muted">Agent presence is the blue dot; amber is something that needs you. Dashed amber border means a child inside needs you.</p>

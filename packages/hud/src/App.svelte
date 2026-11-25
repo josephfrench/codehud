@@ -2,55 +2,61 @@
   import { onMount } from 'svelte';
   import { hud } from './lib/state.svelte.ts';
   import Hud from './components/Hud.svelte';
+  import Scene from './components/Scene.svelte';
   import TopBar from './components/TopBar.svelte';
   import Breadcrumbs from './components/Breadcrumbs.svelte';
-  import QuestionPanel from './components/QuestionPanel.svelte';
-  import DetailPanel from './components/DetailPanel.svelte';
+  import Dialogue from './components/Dialogue.svelte';
+  import Blowout from './components/Blowout.svelte';
   import Activity from './components/Activity.svelte';
   import Overlays from './components/Overlays.svelte';
-  import FocusView from './components/FocusView.svelte';
-  import Blowout from './components/Blowout.svelte';
   import DocsView from './components/DocsView.svelte';
   import Minimap from './components/Minimap.svelte';
 
   let topbar: ReturnType<typeof TopBar>;
-  let qpanel: ReturnType<typeof QuestionPanel> | undefined = $state();
+  let dialogue: Dialogue | undefined = $state();
+  let scene: Scene | undefined = $state();
 
   onMount(() => { hud.connect(); });
+
+  const inScene = $derived(hud.view === 'play' || (hud.view === 'map' && hud.mapStyle === 'scene'));
 
   function typing(e: KeyboardEvent) {
     const t = e.target as HTMLElement | null;
     return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
   }
   function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape' && typing(e)) { (e.target as HTMLElement).blur(); return; }
+    if (e.key === 'Escape') {
+      if (typing(e)) { (e.target as HTMLElement).blur(); return; }
+      if (hud.showHelp) hud.showHelp = false;
+      else if (hud.selected) hud.select(null);
+      else if (hud.previewOption !== null) hud.previewOption = null;
+      else if (hud.view === 'map') hud.ascend();
+      return;
+    }
     if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'Enter' && hud.previewOption !== null) { dialogue?.confirm(); e.preventDefault(); return; }
+    if (/^[1-9]$/.test(e.key) && hud.activeQuestion?.status === 'pending') { dialogue?.pick(Number(e.key) - 1); e.preventDefault(); return; }
     switch (e.key) {
-      case 'Escape': case 'ArrowUp':
-        if (hud.showHelp) hud.showHelp = false;
-        else if (hud.selected) hud.select(null);
-        else hud.ascend();
-        break;
-      case 'Enter': case 'ArrowDown': {
-        const id = hud.selected ?? [...hud.highlighted][0];
-        if (id && hud.index?.hasChildren(id)) hud.descend(id);
-        else if (id) hud.select(id);
-        break;
-      }
-      case 'ArrowLeft': if (!hud.sibling(-1)) hud.swipeLane(-1); break;
-      case 'ArrowRight': if (!hud.sibling(1)) hud.swipeLane(1); break;
-      case 'f': hud.toggleMode(); break;
+      case 'm': hud.view = hud.view === 'map' ? 'play' : 'map'; break;
+      case 'd': hud.view = hud.view === 'docs' ? 'play' : 'docs'; break;
+      case 'g': if (hud.view === 'map') hud.toggleMapStyle(); break;
+      case 'c': hud.questionOpen = !hud.questionOpen; break;
       case 'i': hud.showImports = !hud.showImports; break;
-      case 'a': hud.showActivity = !hud.showActivity; break;
+      case 'l': hud.showActivity = !hud.showActivity; break;
       case 't': hud.toggleTheme(); break;
-      case 'm': hud.view = hud.view === 'map' ? 'focus' : 'map'; break;
-      case 'd': hud.view = hud.view === 'docs' ? 'focus' : 'docs'; break;
-      case 'q': hud.questionOpen = !hud.questionOpen; break;
       case '?': hud.showHelp = !hud.showHelp; break;
-      case '/': e.preventDefault(); topbar.focusSearch(); break;
-      default:
-        if (/^[1-9]$/.test(e.key) && hud.activeQuestion?.status === 'pending') qpanel?.pick(Number(e.key) - 1);
-        else return;
+      case '/': topbar.focusSearch(); break;
+      case 'F': hud.toggleMode(); break;
+      default: {
+        if (hud.view === 'map') {
+          if (e.key === 'ArrowLeft') { if (!hud.sibling(-1)) hud.swipeLane(-1); break; }
+          if (e.key === 'ArrowRight') { if (!hud.sibling(1)) hud.swipeLane(1); break; }
+          if (e.key === 'ArrowUp') { hud.ascend(); break; }
+          if (e.key === 'ArrowDown' || e.key === 'Enter') { const id = hud.selected ?? [...hud.highlighted][0]; if (id && hud.index?.hasChildren(id)) hud.descend(id); break; }
+        }
+        if (inScene && scene?.steer(e.key, e.shiftKey)) break;
+        return;
+      }
     }
     e.preventDefault();
   }
@@ -58,46 +64,26 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="app" class:with-activity={hud.showActivity} class:map={hud.view === 'map'}>
+<div class="app" class:with-activity={hud.showActivity}>
   <TopBar bind:this={topbar} />
   <main>
     <section class="stage">
-      {#if hud.view === 'map'}
+      {#if hud.view === 'docs'}
+        <DocsView />
+      {:else if hud.view === 'map' && hud.mapStyle === 'grid'}
         <Hud />
         <Breadcrumbs />
-      {:else if hud.view === 'docs'}
-        <DocsView />
       {:else}
-        <FocusView />
-        <Minimap />
-        <Blowout />
-        {#if hud.activeQuestion}
-          <div class="drawer" class:open={hud.questionOpen}>
-            {#if hud.questionOpen}
-              <div class="drawer-body"><QuestionPanel bind:this={qpanel} compact /></div>
-              <button class="tab" onclick={() => (hud.questionOpen = false)} title="Collapse (q)">‹</button>
-            {:else}
-              <button class="tab closed" onclick={() => (hud.questionOpen = true)} title="Expand (q)">
-                <span class="dot"></span><span class="vt">{hud.pending.length ? `${hud.pending.length} question${hud.pending.length > 1 ? 's' : ''}` : 'answered'}</span>
-              </button>
-            {/if}
-          </div>
-        {/if}
+        <Scene bind:this={scene} mode={hud.view === 'map' ? 'map' : 'play'} />
+        {#if hud.view === 'map'}<Breadcrumbs />{/if}
+        {#if hud.view === 'play'}<div class="mini"><Minimap /></div>{/if}
       {/if}
+      {#if hud.view !== 'docs'}
+        <Dialogue bind:this={dialogue} />
+      {/if}
+      <Blowout />
       <Overlays />
     </section>
-    {#if hud.view === 'map'}
-      <aside class="side">
-        <QuestionPanel bind:this={qpanel} />
-        <DetailPanel />
-        {#if !hud.activeQuestion && !hud.selected}
-          <div class="idle">
-            <p><b>Idle.</b> Click a node to inspect it, double-click to open it. When the agent asks something it will appear here and the map will zoom to it.</p>
-            <p class="muted">Follow mode keeps the viewport on the agent. Any manual navigation switches to free roam; press <kbd>f</kbd> to re-follow.</p>
-          </div>
-        {/if}
-      </aside>
-    {/if}
   </main>
   {#if hud.showActivity}
     <footer><Activity /></footer>
@@ -107,19 +93,8 @@
 <style>
   .app { height: 100%; display: grid; grid-template-rows: 46px 1fr; }
   .app.with-activity { grid-template-rows: 46px 1fr 128px; }
-  main { display: grid; grid-template-columns: 1fr; min-height: 0; }
-  .map main { grid-template-columns: 1fr 380px; }
-  .stage { position: relative; min-width: 0; overflow: hidden; }
-  .side { border-left: 1px solid var(--line); background: var(--bg); padding: 12px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+  main { min-height: 0; }
+  .stage { position: relative; height: 100%; min-width: 0; overflow: hidden; }
   footer { border-top: 1px solid var(--line); background: var(--bg-2); min-height: 0; }
-  .idle { color: var(--fg-2); font-size: 12.5px; padding: 4px 2px; }
-  .drawer { position: absolute; top: 48px; left: 0; bottom: 16px; display: flex; align-items: flex-start; z-index: 5; pointer-events: none; }
-  .drawer > * { pointer-events: auto; }
-  .drawer-body { width: min(420px, 40vw); max-height: 100%; overflow: auto; padding: 0 0 0 12px; }
-  .tab { align-self: flex-start; margin-top: 10px; padding: 8px 6px; border-radius: 0 8px 8px 0; border-left: none; background: var(--bg-2); color: var(--fg-2); }
-  .tab.closed { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-color: var(--accent); color: var(--accent); }
-  .tab .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s infinite; }
-  .tab .vt { writing-mode: vertical-rl; font: 600 11px var(--mono); letter-spacing: .08em; }
-  .muted { color: var(--fg-3); }
-  @media (max-width: 1100px) { .map main { grid-template-columns: 1fr 320px; } }
+  .mini :global(.minimap) { top: 12px; bottom: auto; right: 14px; width: 190px; height: 118px; }
 </style>
