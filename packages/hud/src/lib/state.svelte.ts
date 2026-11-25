@@ -211,6 +211,7 @@ class HudState {
       case 'hello': {
         // a hello after the first one is a reset: forget what we were looking at
         this.activeQuestionId = null; this.zoomedQuestions.clear(); this.previewOption = null;
+        if (this.map) { this.highlighted = new Set(); this.selected = null; this.blowoutFrom = null; }
         for (const t of this.interruptTimers.values()) clearTimeout(t);
         this.interruptTimers.clear();
         if (ev.map) this.setMap(ev.map);

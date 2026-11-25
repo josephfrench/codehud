@@ -169,8 +169,8 @@ test('reset clears sessions, questions and history, reloads or replaces the map,
   const renamed = { ...JSON.parse(fs.readFileSync(MAP, 'utf8')), name: 'Reset Portal' };
   assert.equal((await post('/api/reset', { map: renamed })).status, 200);
   assert.equal((await (await api('/api/health')).json()).map, 'Reset Portal');
-  assert.equal((await post('/api/reset', { reload: true })).status, 200); // no file to reload after a body map: keeps the current map
-  assert.equal((await (await api('/api/health')).json()).map, 'Reset Portal');
+  assert.equal((await post('/api/reset', { reload: true })).status, 200); // reload goes back to the file given at startup
+  assert.equal((await (await api('/api/health')).json()).map, 'Acme Portal');
 });
 
 test('pending questions expire (CODEHUD_QUESTION_TTL_S), waiters wake, SSE sees it', async () => {

@@ -93,7 +93,10 @@ export function focusLayout(index: MapIndex, focalIds: string[], opts: { maxSide
     }
     for (const [from, l] of bySource) addEdges(l, from, id);
   }
-  for (const e of internal) addEdges([e], e.from, e.to);
+  // parallel edges between two focal nodes (reads + writes) become one line with both kinds
+  const byPair = new Map<string, SysEdge[]>();
+  for (const e of internal) (byPair.get(`${e.from}>${e.to}`) ?? byPair.set(`${e.from}>${e.to}`, []).get(`${e.from}>${e.to}`)!).push(e);
+  for (const list of byPair.values()) addEdges(list, list[0].from, list[0].to);
 
   // Container: shared parent of all focal nodes.
   let container: Container | null = null;

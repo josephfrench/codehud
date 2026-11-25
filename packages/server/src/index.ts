@@ -119,7 +119,7 @@ function loadMap(file: string) {
 function setMap(map: SystemMap, file: string | null) {
   state.map = map;
   state.index = new MapIndex(map);
-  state.mapPath = file;
+  if (file) state.mapPath = file; // a pushed map keeps the last file as the one a reset goes back to
   broadcast({ type: 'map', map });
   log('map', `Loaded map "${map.name}" (${map.nodes.length} nodes, ${map.edges.length} edges)`);
 }
@@ -350,7 +350,7 @@ async function handleApi(req: Req, res: Res, url: URL) {
     if (body.map !== undefined) {
       const v = validateSystemMap(body.map);
       if (!v.ok) throw new HttpError(400, v.errors.join('; '));
-      state.map = v.map; state.index = new MapIndex(v.map); state.mapPath = null;
+      state.map = v.map; state.index = new MapIndex(v.map);
     } else if (body.reload && state.mapPath) {
       try { const v = validateSystemMap(JSON.parse(fs.readFileSync(state.mapPath, 'utf8'))); if (v.ok) { state.map = v.map; state.index = new MapIndex(v.map); } }
       catch (e: any) { throw new HttpError(400, `could not reload ${state.mapPath}: ${e.message}`); }
