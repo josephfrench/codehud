@@ -8,3 +8,6 @@ dist/
 !.env.example
 .codehud/
 *.tsbuildinfo
+out/
+packages/cli/templates/
+*.tgz

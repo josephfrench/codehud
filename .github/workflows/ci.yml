@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter codehud build
+      - name: pack
+        run: pnpm --filter codehud pack --pack-destination ./out
+      - name: smoke the tarball outside the repo
+        shell: bash
+        run: |
+          set -eux
+          tmp="$RUNNER_TEMP/codehud-smoke"
+          mkdir -p "$tmp"
+          npm install -g --prefix "$tmp" ./out/codehud-*.tgz
+          cli="$tmp/node_modules/codehud/dist/cli.js"
+          node "$cli" --help
+          node "$cli" crawl . --out "$tmp/self.system.json" --quiet
+          node -e "const m=require(process.argv[1]); if (!m.nodes.length) throw new Error('empty map')" "$tmp/self.system.json"
+          node "$cli" up --port 4790 --map examples/sample-webapp.system.json --detach
+          curl -fsS http://127.0.0.1:4790/api/health
+          curl -fsS -o /dev/null http://127.0.0.1:4790/demo
+          node "$cli" status
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: codehud-tarball
+          path: out/*.tgz
