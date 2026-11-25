@@ -9,3 +9,6 @@ dist/
 .codehud/
 *.tsbuildinfo
 .claude/worktrees/
+out/
+packages/cli/templates/
+*.tgz

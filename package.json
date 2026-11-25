@@ -1,5 +1,5 @@
 {
-  "name": "codehud",
+  "name": "codehud-monorepo",
   "private": true,
   "version": "0.0.1",
   "description": "A heads-up display for the system you're building with an AI coding agent.",
@@ -14,6 +14,9 @@
     "demo": "node scripts/demo.ts",
     "mcp": "node packages/mcp/src/index.ts",
     "crawl": "node packages/crawler/src/cli.ts",
+    "cli": "node packages/cli/src/cli.ts",
+    "release:pack": "pnpm --filter codehud build && pnpm --filter codehud pack --pack-destination ./out",
+    "test": "pnpm -r --if-present test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

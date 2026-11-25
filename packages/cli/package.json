@@ -1,0 +1,43 @@
+{
+  "name": "codehud",
+  "version": "0.1.0",
+  "description": "A heads-up display for the system you are building with an AI coding agent: local server + browser HUD + MCP bridge + crawler, in one command.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "codehud": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "pack": "pnpm build && pnpm pack"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/josephfrench/codehud.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/josephfrench/codehud#readme",
+  "keywords": [
+    "mcp",
+    "claude-code",
+    "coding-agent",
+    "system-map",
+    "hud",
+    "architecture"
+  ]
+}
