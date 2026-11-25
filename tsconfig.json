@@ -6,6 +6,8 @@
     "packages/mcp/src",
     "packages/crawler/src",
     "scripts",
-    "packages/server/test"
+    "packages/server/test",
+    "packages/mcp/test",
+    "packages/acp-spike/src"
   ]
 }

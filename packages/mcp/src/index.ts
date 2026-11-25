@@ -10,12 +10,21 @@
  *   CODEHUD_LABEL     human label shown in the HUD (default: cwd basename)
  *   CODEHUD_AUTOSTART set to 0 to disable starting the server when it is down
  *   CODEHUD_OPEN      set to 1 to open the browser when the server is started
+ *   CODEHUD_HOME      directory holding server.json (default ~/.codehud)
+ *   CODEHUD_OPEN_ON_ASK set to 0 to never open the browser when hud_ask finds no HUD connected
+ *
+ * No-browser ladder for hud_ask (docs/research/connection.md §4):
+ *   1. a browser is connected -> ask in the HUD
+ *   2. none -> open the HUD URL once per bridge process and wait up to 10 s for a tab to connect
+ *   3. still none -> MCP form elicitation (terminal dialog) when the client supports it; the answer is
+ *      recorded in the HUD too, so the decision log stays complete
+ *   4. otherwise -> return the question as plain text so the agent asks in the terminal
  */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -26,7 +35,7 @@ import type { Question, ServerInfo } from '../../schema/src/protocol.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SERVER_ENTRY = path.resolve(here, '../../server/src/index.ts');
-const INFO_FILE = path.join(os.homedir(), '.codehud', 'server.json');
+const INFO_FILE = path.join(process.env.CODEHUD_HOME ? path.resolve(process.env.CODEHUD_HOME) : path.join(os.homedir(), '.codehud'), 'server.json');
 // Claude Code sets CLAUDE_CODE_SESSION_ID in stdio MCP subprocesses; hooks see the same id.
 const SESSION = process.env.CODEHUD_SESSION ?? process.env.CLAUDE_CODE_SESSION_ID ?? crypto.randomBytes(4).toString('hex');
 const CWD = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -42,11 +51,71 @@ let info: ServerInfo | null = null;
 function readInfo(): ServerInfo | null {
   try { return JSON.parse(fs.readFileSync(INFO_FILE, 'utf8')); } catch { return null; }
 }
-async function healthy(i: ServerInfo) {
+async function health(i: ServerInfo): Promise<{ ok: boolean; browsers: number }> {
   try {
     const r = await fetch(`http://${i.host}:${i.port}/api/health`, { signal: AbortSignal.timeout(1500) });
-    return r.ok;
-  } catch { return false; }
+    if (!r.ok) return { ok: false, browsers: 0 };
+    const j = await r.json();
+    return { ok: true, browsers: Number(j.browsers ?? 0) };
+  } catch { return { ok: false, browsers: 0 }; }
+}
+async function healthy(i: ServerInfo) { return (await health(i)).ok; }
+
+let openedOnce = false;
+function openBrowser(url: string) {
+  const cmd = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]] as const
+    : process.platform === 'darwin' ? ['open', [url]] as const : ['xdg-open', [url]] as const;
+  execFile(cmd[0], [...cmd[1]], { windowsHide: true }, () => { /* best effort */ });
+}
+/** Rung 2 of the ladder: make sure a HUD tab is connected, opening one if allowed. Returns the browser count. */
+async function ensureBrowser(i: ServerInfo, waitMs = 10_000): Promise<number> {
+  let { browsers } = await health(i);
+  if (browsers > 0) return browsers;
+  if (process.env.CODEHUD_OPEN_ON_ASK === '0' || openedOnce) return 0;
+  openedOnce = true;
+  openBrowser(`${i.url}/#t=${i.token}`);
+  const until = Date.now() + waitMs;
+  while (Date.now() < until) {
+    await new Promise((r) => setTimeout(r, 500));
+    browsers = (await health(i)).browsers;
+    if (browsers > 0) return browsers;
+  }
+  return 0;
+}
+
+/** Rung 3: a form elicitation in the agent's own UI (terminal dialog in Claude Code). null = not supported / declined. */
+async function elicit(q: Question): Promise<{ optionId?: string; text: string } | null> {
+  const caps = server.server.getClientCapabilities();
+  if (!caps?.elicitation) return null;
+  const opts = q.options ?? [];
+  const properties: Record<string, any> = opts.length
+    ? { choice: { type: 'string', title: 'Choice', enum: opts.map((o) => o.id), enumNames: opts.map((o) => `${o.label}${o.description ? ` — ${o.description}` : ''}`) }, note: { type: 'string', title: 'Note (optional)' } }
+    : { answer: { type: 'string', title: 'Answer' } };
+  try {
+    const r = await server.server.elicitInput({
+      mode: 'form',
+      message: `codehud (no HUD tab is open)\n\n${q.question}\n\n${q.context ?? ''}`.slice(0, 2000),
+      requestedSchema: { type: 'object', properties, required: opts.length ? ['choice'] : ['answer'] },
+    } as any);
+    if (r.action !== 'accept' || !r.content) return null;
+    const c = r.content as Record<string, unknown>;
+    if (opts.length) return { optionId: String(c.choice ?? ''), text: String(c.note ?? '') };
+    return { text: String(c.answer ?? '') };
+  } catch { return null; }
+}
+
+/** Rung 4: hand the question back as text so the agent asks in the terminal. */
+function fmtFallback(q: Question) {
+  const opts = (q.options ?? []).map((o, i) => `${i + 1}. ${clean(o.label)}${o.description ? ` — ${clean(o.description)}` : ''}`).join('\n');
+  return [
+    `No HUD browser tab is connected and the terminal could not show a dialog, so this question was NOT answered (id ${q.id}, left pending in the HUD).`,
+    'Ask the human in the terminal instead (AskUserQuestion / plain text), with the same question and options:',
+    '',
+    clean(q.question),
+    opts ? '\n' + opts : '',
+    '',
+    `If the human opens the HUD meanwhile, hud_await "${q.id}" picks the answer up from there.`,
+  ].join('\n');
 }
 async function ensureServer(): Promise<ServerInfo> {
   if (info && (await healthy(info))) return info;
@@ -134,6 +203,7 @@ function fmtAnswer(q: Question) {
     ].join('\n');
   }
   if (q.status === 'cancelled') return `Question ${q.id} was cancelled (by the human in the HUD, or because you cancelled the call). Proceed with your best judgement and say what you assumed.`;
+  if (q.status === 'expired') return `Question ${q.id} expired before the human answered it. Ask again (hud_ask) if the decision still matters, or proceed with your best judgement and say clearly what you assumed.`;
   return `Still waiting on the human (question ${q.id}, status: pending). Call hud_await with questionId "${q.id}" to keep waiting. If you have waited several times already, proceed with your best judgement and say clearly what you assumed.`;
 }
 
@@ -239,8 +309,23 @@ server.registerTool('hud_ask', {
     timeoutSeconds: z.number().min(5).max(3600).optional().describe('Default 100'),
   },
 }, async ({ timeoutSeconds, ...input }, extra) => {
-  const q: Question = await api('POST', '/api/questions', { ...input, session: SESSION, agent: 'mcp' });
+  const i = await ensureServer();
+  let q: Question;
+  try { q = await api('POST', '/api/questions', { ...input, session: SESSION, agent: 'mcp' }); }
+  catch (e: any) { return text(`hud_ask refused: ${e.message}. Wait for pending answers (hud_await) or slow down before asking again.`); }
   await heartbeat('waiting');
+  const browsers = await ensureBrowser(i);
+  if (browsers === 0) {
+    // No HUD in sight: try the agent's own UI, and record whatever comes back so the HUD log is complete.
+    const got = await elicit(q);
+    if (got && (got.optionId || got.text)) {
+      try { q = await api('POST', `/api/questions/${q.id}/answer`, got); } catch { /* answered elsewhere meanwhile; fall through to await */ }
+      if (q.status !== 'pending') { await heartbeat('working'); return text(fmtAnswer(q)); }
+    } else if (got === null && (await health(i)).browsers === 0) {
+      await heartbeat('working');
+      return text(fmtFallback(q));
+    }
+  }
   const final = await awaitAnswer(q.id, timeoutSeconds ?? DEFAULT_WAIT_S, extra as Extra);
   await heartbeat('working');
   return text(fmtAnswer(final));
