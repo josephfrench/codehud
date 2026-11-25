@@ -67,9 +67,9 @@ const HELP = `codehud — a HUD for the system your coding agent is changing
   codehud mcp
       Run the MCP stdio bridge. This is the command Claude Code launches.
   codehud crawl <repo> [--out <file>] [--watch] [--load] [--name x] [--max-children 12] [--max-lanes 8] [--no-tests] [--no-low-confidence] [--quiet]
-      Crawl a JS/TS web-app repo into a SystemMap. --watch re-crawls on change; --load pushes it to a running server.
+      Crawl a repo (web, server, infra, Python adapters) into a SystemMap. --watch re-crawls on change; --load pushes it to a running server.
   codehud install claude [--project <dir> | --global] [--no-crawl] [--no-hooks]
-      Register the MCP server, add the presence hook, append the CLAUDE.md snippet, crawl into ${MAP_REL}.
+      Register the MCP server, install the hooks pack (presence, AskUserQuestion, SessionStart), append the CLAUDE.md snippet, crawl into ${MAP_REL}.
   codehud uninstall claude [--project <dir> | --global]
       Reverse the above (the map file is kept).
   codehud status        Is the server up, what is loaded, how many browsers are connected.
