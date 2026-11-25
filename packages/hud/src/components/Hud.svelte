@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { hud } from '../lib/state.svelte.ts';
   import { computeLayout, bbox, KIND_GLYPH, EDGE_STYLE, LANE_HEAD_H, type Layout, type VisEdge, type Card } from '../lib/layout.ts';
   import { outsideStubs, type Stub } from '../lib/stubs.ts';
@@ -18,8 +19,8 @@
   // Zoom in: (1) siblings compress and dim, the focus card grows, (2) the level swaps, (3) children and edges fade in.
   // Zoom out: the card we came from starts enlarged and settles into place while its siblings fade in.
   const LEAVE_MS = 150, ENTER_MS = 260;
-  let shown = $state<Layout | null>(null);
-  let shownStubs = $state<Stub[]>([]);
+  let shown = $state.raw<Layout | null>(null);
+  let shownStubs = $state.raw<Stub[]>([]);
   let phase = $state<'idle' | 'leaving' | 'entering'>('idle');
   let leavingId = $state<string | null>(null);
   let arrivingId = $state<string | null>(null);
@@ -30,21 +31,25 @@
     const l = layout, s = stubs;
     const depth = hud.focusPath.length;
     const level = hud.focusPath.join('/');
-    const prev = shown;
-    const swap = () => { shown = l; shownStubs = s; };
-    if (!l || !prev || reducedMotion() || level === lastLevel) { swap(); lastDepth = depth; lastLevel = level; return; }
-    clearTimeout(stageTimer);
     const into = hud.focusPath.at(-1);
-    if (depth > lastDepth && into && prev.cardById.has(into)) {
-      phase = 'leaving'; leavingId = into; arrivingId = null;
-      stageTimer = setTimeout(() => { swap(); phase = 'entering'; leavingId = null; stageTimer = setTimeout(() => (phase = 'idle'), ENTER_MS); }, LEAVE_MS);
-    } else {
-      swap();
-      arrivingId = depth < lastDepth && hud.selected && l.cardById.has(hud.selected) ? hud.selected : null;
-      phase = 'entering'; leavingId = null;
-      stageTimer = setTimeout(() => { phase = 'idle'; arrivingId = null; }, ENTER_MS + 80);
-    }
-    lastDepth = depth; lastLevel = level;
+    // everything below reads/writes staging state only; it must not re-trigger this effect
+    untrack(() => {
+      const prev = shown;
+      const swap = () => { shown = l; shownStubs = s; };
+      if (!l || !prev || reducedMotion() || level === lastLevel) { swap(); lastDepth = depth; lastLevel = level; return; }
+      clearTimeout(stageTimer);
+      if (depth > lastDepth && into && prev.cardById.has(into)) {
+        phase = 'leaving'; leavingId = into; arrivingId = null;
+        stageTimer = setTimeout(() => { swap(); phase = 'entering'; leavingId = null; stageTimer = setTimeout(() => (phase = 'idle'), ENTER_MS); }, LEAVE_MS);
+      } else {
+        swap();
+        const sel = hud.selected;
+        arrivingId = depth < lastDepth && sel && l.cardById.has(sel) ? sel : null;
+        phase = 'entering'; leavingId = null;
+        stageTimer = setTimeout(() => { phase = 'idle'; arrivingId = null; }, ENTER_MS + 80);
+      }
+      lastDepth = depth; lastLevel = level;
+    });
   });
 
   // ----- fit / animation ----------------------------------------------------

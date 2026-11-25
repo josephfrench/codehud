@@ -138,7 +138,8 @@
     // edges that leave this level: stubs just outside the bands, beams to the cards they touch
     const stubs: PlacedStub[] = outsideStubs(idx, hud.current?.id ?? null, layout, { showImports: hud.showImports }).map((s) => {
       const p = toPlane(s.x, s.y);
-      const off = s.side === 'top' ? { x: 0, y: -90 } : s.side === 'bottom' ? { x: 0, y: 60 } : s.side === 'left' ? { x: -120, y: 0 } : { x: 60, y: 0 };
+      // sprites stand ~200px tall above their floor point, so top stubs sit well behind the first row
+      const off = s.side === 'top' ? { x: 0, y: -300 } : s.side === 'bottom' ? { x: 0, y: 90 } : s.side === 'left' ? { x: -160, y: 0 } : { x: 80, y: 0 };
       return { stub: s, x: p.x + off.x, y: p.y + off.y };
     });
     for (const ps of stubs) {
