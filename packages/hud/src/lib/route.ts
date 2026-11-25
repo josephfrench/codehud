@@ -15,7 +15,7 @@ const MY = 5;        // and vertically
 const APPROACH = 9;  // last channel before entering a card: the middle of a row gap (GAP = 18)
 const NARROW = 22;   // corridors narrower than this are a squeeze between two cards; avoided when possible
 
-interface Ctx { boxes: Box[]; skip: Set<string> }
+interface Ctx { boxes: Box[]; skip: Set<string>; gutters: number[] }
 
 const cx = (b: Box) => b.x + b.w / 2;
 
@@ -61,6 +61,17 @@ function corridor(c: Ctx, y0: number, y1: number, target: number, cur: number, x
   return best ?? target;
 }
 
+/** The free lane gutter that costs least: close to where we are heading, then close to where we are. */
+function nearestGutter(c: Ctx, y0: number, y1: number, target: number, cur: number): number {
+  let best = c.gutters[0], bestScore = Infinity;
+  for (const g of c.gutters) {
+    if (blockedV(c, g, y0, y1)) continue;
+    const score = Math.abs(g - target) + 0.35 * Math.abs(g - cur);
+    if (score < bestScore) { bestScore = score; best = g; }
+  }
+  return best;
+}
+
 /**
  * Walk from (x, y) to the level `toY`, sidestepping along `channelY` when the straight drop is blocked.
  * Prefers `target` x when the drop at target is free, else the current x, else the nearest free corridor.
@@ -70,6 +81,7 @@ function drop(c: Ctx, pts: Pt[], toY: number, channelY: number, target: number, 
   let x: number;
   if (headTo && Math.abs(target - cur.x) > 0.5 && !blockedV(c, target, channelY, toY)) x = target;
   else if (!blockedV(c, cur.x, cur.y, toY)) x = cur.x;
+  else if (headTo && c.gutters.length) x = nearestGutter(c, channelY, toY, target, cur.x); // cross the row along a lane gutter
   else x = corridor(c, channelY, toY, headTo ? target : cur.x, cur.x, xmin, xmax);
   if (Math.abs(x - cur.x) > 0.5) {
     if (Math.abs(channelY - cur.y) > 0.5) pts.push({ x: cur.x, y: channelY });
@@ -82,8 +94,10 @@ function drop(c: Ctx, pts: Pt[], toY: number, channelY: number, target: number, 
  * Route from card `a` to card `b`. `off` fans out parallel edges. `levels` are the free horizontal
  * channels between the two cards' bands (band boundaries), in travel order. `xRange` bounds corridors.
  */
-export function routeBoxes(a: Box, b: Box, off: number, boxes: Box[], levels: number[], xRange: [number, number]): Pt[] {
-  const c: Ctx = { boxes, skip: new Set([a.id, b.id]) };
+export interface RouteOpts { levels: number[]; xRange: [number, number]; /** lane gutters: where a path crosses a whole row */ gutters?: number[] }
+export function routeBoxes(a: Box, b: Box, off: number, boxes: Box[], o: RouteOpts): Pt[] {
+  const { levels, xRange, gutters = [] } = o;
+  const c: Ctx = { boxes, skip: new Set([a.id, b.id]), gutters };
   const [xmin, xmax] = xRange;
   const sameBand = levels.length === 0;
 

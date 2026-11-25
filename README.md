@@ -135,7 +135,7 @@ Three views, switched from the top bar or with `m` (map) and `d` (docs):
 | `1`…`9`, then `↵` | preview an answer's path, then confirm |
 | `←` `→` `↑` `↓` | map: siblings or lanes, up a level, open the selected node |
 | `Esc` | close the card, clear the preview, or go up a level |
-| `c` `l` `h` `i` `t` `b` `?` `/` | collapse the dialogue, log, history, import edges, theme, lane terrain, help, search |
+| `c` `l` `h` `i` `t` `b` `?` `/` | collapse the dialogue, log, history, import edges, theme, ground, help, search |
 | `Shift+F` | follow the agent / free roam |
 
 Amber means something needs you. Blue is where the agent is. Layout is deterministic: the same map at
@@ -143,18 +143,20 @@ the same level always looks the same.
 
 - A new question never steals focus: the node and the top bar go amber and a quiet toast appears; the
   view only moves when this window is focused, when you come back to it, or after 20 s unanswered.
-- Zoomed into a node, connections that leave that level appear as stubs at the edge of the map (grid and
-  3D). Hover a stub to see what is behind it, click to follow.
+- Zoomed into a node, the outside nodes its children talk to are laid out too, as ghost cards in their own
+  rows and lanes with the real paths drawn to them, so a level is a slice of the whole system, never an
+  island. Click a ghost to go there. Inside a cell, nodes sit in call order.
 - `h` opens History: decisions, questions, notes and map loads, filterable, each linked to its nodes.
   `✓n` on a node answers "why is this here?" on hover.
 - Several agents at once: each session has its own colour; click a session in the top bar to follow only
   that one. Pending counts group by session.
 - Maps may declare any layer set in any order; `examples/service-mesh.system.json` shows a non-web one.
   Layers without a known colour get a palette slot or their own `color`.
-- Edges are footpaths: a path leaves a card, drops into the gap, walks a free channel and goes round
-  any card in its way instead of cutting through it (grid and 3D map alike).
-- `b` lays swimlane terrain over the map: each lane gets a texture and tone, as columns in the map and
-  as ground tiles under the sprites in play view, so you can tell which lane a thing stands in. `/demo` is the in-browser tour; `/assets` shows every resource sprite in
+- Edges are routes, and they light up for a reason: the agent's trace, a question, or the card under the
+  pointer. Lit routes are bright, directional and labelled; everything else stays faint. A route leaves a
+  card, follows the gutter between rows, crosses a row along a lane gutter, and goes round cards in its way.
+- `b` turns on the ground: every layer (row) is a kind of terrain, with one key everywhere (grid bands, 3D
+  floor, the tile under a sprite in play view) and a legend bottom-left. Lanes are districts, fenced. `/demo` is the in-browser tour; `/assets` shows every resource sprite in
 its four states.
 
 ## Security posture

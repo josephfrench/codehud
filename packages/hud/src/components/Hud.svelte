@@ -1,20 +1,20 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { hud } from '../lib/state.svelte.ts';
-  import { computeLayout, bbox, KIND_GLYPH, EDGE_STYLE, LANE_HEAD_H, type Layout, type VisEdge, type Card } from '../lib/layout.ts';
-  import { outsideStubs, type Stub } from '../lib/stubs.ts';
-  import { laneTexture, laneTone } from '../lib/terrain.ts';
+  import { computeLayout, ghostsFor, bbox, KIND_GLYPH, EDGE_STYLE, LANE_HEAD_H, BAND_LABEL_W, type Layout, type VisEdge, type Card } from '../lib/layout.ts';
+  import { layerGround } from '../lib/terrain.ts';
   import Minimap from './Minimap.svelte';
   import Terrain from './Terrain.svelte';
+  import Legend from './Legend.svelte';
 
   let container: HTMLDivElement;
   let svgEl: SVGSVGElement;
   let size = $state({ w: 1200, h: 800 });
   let vb = $state({ x: 0, y: 0, w: 1200, h: 800 });
 
-  const layout = $derived<Layout | null>(hud.index ? computeLayout(hud.index, hud.visible, { showImports: hud.showImports }) : null);
+  // inside a container the outside neighbours come along as ghosts, so the level is a slice of the whole, not an island
+  const layout = $derived<Layout | null>(hud.index ? computeLayout(hud.index, hud.visible, { showImports: hud.showImports, ghosts: ghostsFor(hud.index, hud.current?.id ?? null, { showImports: hud.showImports }) }) : null);
   const hasHighlight = $derived(hud.highlighted.size > 0);
-  const stubs = $derived<Stub[]>(hud.index && layout ? outsideStubs(hud.index, hud.current?.id ?? null, layout, { showImports: hud.showImports }) : []);
   const reducedMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
   // ----- staged zoom (interface-patterns.md §2) ------------------------------
@@ -22,7 +22,6 @@
   // Zoom out: the card we came from starts enlarged and settles into place while its siblings fade in.
   const LEAVE_MS = 150, ENTER_MS = 260;
   let shown = $state.raw<Layout | null>(null);
-  let shownStubs = $state.raw<Stub[]>([]);
   let phase = $state<'idle' | 'leaving' | 'entering'>('idle');
   let leavingId = $state<string | null>(null);
   let arrivingId = $state<string | null>(null);
@@ -30,14 +29,14 @@
   let lastLevel = '';
   let stageTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
-    const l = layout, s = stubs;
+    const l = layout;
     const depth = hud.focusPath.length;
     const level = hud.focusPath.join('/');
     const into = hud.focusPath.at(-1);
     // everything below reads/writes staging state only; it must not re-trigger this effect
     untrack(() => {
       const prev = shown;
-      const swap = () => { shown = l; shownStubs = s; };
+      const swap = () => { shown = l; };
       if (!l || !prev || reducedMotion() || level === lastLevel) { swap(); lastDepth = depth; lastLevel = level; return; }
       clearTimeout(stageTimer);
       if (depth > lastDepth && into && prev.cardById.has(into)) {
@@ -144,7 +143,7 @@
     drag = null;
     if (svgEl.hasPointerCapture(e.pointerId)) svgEl.releasePointerCapture(e.pointerId);
     if (wasDrag) hud.roam();
-    else if ((e.target as Element).closest('.card, .stub') === null) hud.select(null);
+    else if ((e.target as Element).closest('.card') === null) hud.select(null);
   }
 
   // ----- helpers ---------------------------------------------------------------
@@ -157,9 +156,17 @@
   const agentColor = (id: string) => hud.agentColorByNode.get(id) ?? 'var(--agent)';
   const pendingCount = (id: string) => hud.pendingByNode.get(id)?.length ?? 0;
   const decisionCount = (id: string) => hud.decisionsByNode.get(id)?.length ?? 0;
-  function edgeLit(e: VisEdge) { return hud.litSet.has(e.from) && hud.litSet.has(e.to); }
-  function edgeDim(e: VisEdge) { return hasHighlight && !(hud.litSet.has(e.from) || hud.litSet.has(e.to)); }
+  // Routes light up for a reason: the agent's trace / a question (highlighted), or the card under the pointer. The rest stays faint.
+  let hover = $state<string | null>(null);
+  // a route is part of the trace when one of the exact nodes it connects is highlighted (or sits inside a highlighted container)
+  const nodeLit = (id: string) => hud.highlighted.has(id) || (hud.index?.ancestors(id).some((a) => hud.highlighted.has(a.id)) ?? false);
+  const touchesLit = (e: VisEdge) => e.touches.some(nodeLit) || (hud.litSet.has(e.from) && hud.litSet.has(e.to));
+  const edgeHot = (e: VisEdge) => !!hover && (e.from === hover || e.to === hover);
+  function edgeLit(e: VisEdge) { return hover ? edgeHot(e) : touchesLit(e); } // the pointer's reach, else the trace / question's reach
+  function edgeDim(e: VisEdge) { return hover ? !edgeHot(e) : hasHighlight && !touchesLit(e); }
+  const neighbour = (id: string, other: string) => shown!.edges.some((e) => (e.from === id && e.to === other) || (e.to === id && e.from === other));
   function cardDim(c: Card) {
+    if (hover) return c.id !== hover && !neighbour(hover, c.id);
     if (!hasHighlight) return false;
     if (hud.litSet.has(c.id) || hud.selected === c.id) return false;
     // keep direct neighbours of lit nodes readable
@@ -167,6 +174,7 @@
   }
   function onCardClick(e: MouseEvent, id: string) {
     e.stopPropagation();
+    if (shown?.cardById.get(id)?.ghost) { hover = null; hud.goTo([id], { select: true }); return; } // a ghost is a door: go there
     if (hud.selected === id) { hud.select(null); return; }
     const r = (e.currentTarget as Element).getBoundingClientRect();
     hud.openBlowout(id, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
@@ -179,21 +187,6 @@
     e.stopPropagation();
     hud.descend(id);
   }
-  function stubLine(s: Stub, repId: string) {
-    const c = shown!.cardById.get(repId);
-    if (!c) return '';
-    const cx = c.x + c.w / 2, cy = c.y + c.h / 2;
-    return `M${s.x},${s.y} L${cx},${cy}`;
-  }
-  function onStubClick(e: MouseEvent, s: Stub) {
-    e.stopPropagation();
-    hud.hideTip();
-    hud.goTo(s.targets.map((t) => t.id));
-  }
-  function stubTip(e: MouseEvent, s: Stub) {
-    const dir = s.out && s.inn ? '↔' : s.out ? '→' : '←';
-    hud.showTip({ x: e.clientX, y: e.clientY, title: `${dir} ${s.label} · ${s.count} edge${s.count === 1 ? '' : 's'} (${s.kinds.join(', ')})`, lines: s.targets.map((t) => `${KIND_GLYPH[t.kind] ?? '•'} ${t.label}`), accent: layerColor(s.layer) });
-  }
   function whyTip(e: MouseEvent, id: string) {
     const d = hud.latestDecision(id);
     if (!d) return;
@@ -201,7 +194,6 @@
     const n = decisionCount(id);
     hud.showTip({ x: e.clientX, y: e.clientY, title: 'Why is this here?', lines: [d.question, `✓ ${chosen}`, ...(n > 1 ? [`+${n - 1} earlier decision${n > 2 ? 's' : ''} · press h`] : [])], accent: 'var(--ok)' });
   }
-  const stubLabel = (s: Stub) => `${s.out && s.inn ? '↔' : s.out ? '→' : '←'} ${trunc(s.label, 14)}${s.count > 1 ? ` ×${s.count}` : ''}`;
   const showMini = $derived(!!shown && (hud.focusPath.length > 0 || shown.width > size.w));
 </script>
 
@@ -239,6 +231,9 @@
       <!-- layer bands -->
       {#each layout.bands as b (b.layer.id)}
         <rect x={-2000} y={b.y} width={layout.width + 4000} height={b.h} fill={layerColor(b.layer.id)} opacity="0.045" />
+        {#if hud.terrain}
+          <rect class="ground" x={BAND_LABEL_W} y={b.y} width={layout.width - BAND_LABEL_W} height={b.h} fill="url(#tex-{layerGround(hud.map, b.layer.id)})" style="color: {layerColor(b.layer.id)}" />
+        {/if}
         <line x1={-2000} y1={b.y} x2={layout.width + 4000} y2={b.y} stroke="var(--line)" />
         <rect x={0} y={b.y + 10} width={3} height={b.h - 20} rx="1.5" fill={layerColor(b.layer.id)} opacity="0.8" />
         <text x={14} y={b.y + 24} class="band-label" fill={layerColor(b.layer.id)}>{b.layer.label.toUpperCase()}</text>
@@ -247,54 +242,39 @@
         {/if}
       {/each}
 
-      <!-- lane columns; with terrain on, each lane is a strip of textured ground over the layer bands -->
+      <!-- lane columns: districts, fenced when the ground is on -->
       {#each layout.columns as c, i (c.id)}
-        {@const tex = hud.terrain ? laneTexture(hud.map, c.lane?.id) : null}
-        {#if tex}
-          <rect x={c.x} y={LANE_HEAD_H} width={c.w} height={layout.height - LANE_HEAD_H} fill={laneTone(hud.map, c.lane?.id)} opacity="0.05" />
-          <rect class="terrain" x={c.x} y={LANE_HEAD_H} width={c.w} height={layout.height - LANE_HEAD_H} fill="url(#tex-{tex})" style="color: {laneTone(hud.map, c.lane?.id)}" />
+        {#if i > 0}
+          {#if hud.terrain}
+            <line class="fence" x1={c.x - 2} y1={LANE_HEAD_H} x2={c.x - 2} y2={layout.height} />
+            <line class="fence" x1={c.x + 2} y1={LANE_HEAD_H} x2={c.x + 2} y2={layout.height} />
+          {:else}
+            <line x1={c.x} y1={LANE_HEAD_H - 10} x2={c.x} y2={layout.height} stroke="var(--line)" stroke-dasharray="2 6" />
+          {/if}
         {/if}
-        {#if i > 0}<line x1={c.x} y1={LANE_HEAD_H - 10} x2={c.x} y2={layout.height} stroke="var(--line)" stroke-dasharray="2 6" />{/if}
-        <text x={c.x + c.w / 2} y={LANE_HEAD_H - 14} text-anchor="middle" class="lane-label" class:shared={!c.lane} style={tex ? `fill: ${laneTone(hud.map, c.lane?.id)}` : ''}>
+        <text x={c.x + c.w / 2} y={LANE_HEAD_H - 14} text-anchor="middle" class="lane-label" class:shared={!c.lane}>
           {c.lane?.label ?? 'Shared'}
         </text>
       {/each}
 
-      <!-- edges to the outside: stubs at the boundary -->
-      <g class="stubs">
-        {#each shownStubs as s (s.id)}
-          {#each s.insideReps as rep (rep)}
-            <path d={stubLine(s, rep)} class="stub-line" />
-          {/each}
-          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
-          <g class="stub" transform="translate({s.x} {s.y})" style="--c: {layerColor(s.layer)}"
-            onclick={(e) => onStubClick(e, s)} onmouseenter={(e) => stubTip(e, s)} onmousemove={(e) => stubTip(e, s)} onmouseleave={() => hud.hideTip()}>
-            <rect x={-64} y={-11} width={128} height={22} rx="11" />
-            <text y="4" text-anchor="middle">{stubLabel(s)}</text>
-          </g>
-        {/each}
-      </g>
-
       <!-- edges -->
       <g class="edges">
         {#each layout.edges as e (e.key)}
+          {@const lit = edgeLit(e)}
           <path
             d={e.d}
             class="edge"
-            class:lit={edgeLit(e)}
+            class:lit
             class:dim={edgeDim(e)}
             class:lifted={!e.direct}
+            class:ghost={e.ghost}
             stroke-dasharray={EDGE_STYLE[e.kind]?.dash}
-            marker-end={edgeLit(e) ? 'url(#arrow-lit)' : 'url(#arrow)'}
+            marker-end={lit ? 'url(#arrow-lit)' : 'url(#arrow)'}
           />
-          {#if e.count > 1 || e.labels.length}
-            <g transform="translate({e.mid.x} {e.mid.y})" class="edge-tag" class:lit={edgeLit(e)} class:dim={edgeDim(e)}>
-              <rect x={-28} y={-9} width={56} height={18} rx="9" />
-              <text y="4" text-anchor="middle">{e.count > 1 ? `${EDGE_STYLE[e.kind]?.label ?? e.kind} ×${e.count}` : trunc(e.labels[0] ?? e.kind, 12)}</text>
-            </g>
-          {:else}
-            <g transform="translate({e.mid.x} {e.mid.y})" class="edge-kind" class:dim={edgeDim(e)}>
-              <text y="3" text-anchor="middle">{EDGE_STYLE[e.kind]?.label ?? e.kind}</text>
+          {#if lit}
+            <g transform="translate({e.mid.x} {e.mid.y})" class="edge-tag lit">
+              <rect x={-34} y={-9} width={68} height={18} rx="9" />
+              <text y="4" text-anchor="middle">{e.count > 1 ? `${EDGE_STYLE[e.kind]?.label ?? e.kind} ×${e.count}` : trunc(e.labels[0] ?? EDGE_STYLE[e.kind]?.label ?? e.kind, 14)}</text>
             </g>
           {/if}
         {/each}
@@ -318,10 +298,13 @@
           class:leave-focus={leavingId === c.id}
           class:leave-sib={!!leavingId && leavingId !== c.id}
           class:arrive={arrivingId === c.id}
+          class:ghost={c.ghost}
           transform="translate({c.x} {c.y})"
           style="--c: {layerColor(c.layer)}; --a: {agentColor(c.id)}"
           onclick={(e) => onCardClick(e, c.id)}
           ondblclick={(e) => onCardDbl(e, c.id)}
+          onmouseenter={() => (hover = c.id)}
+          onmouseleave={() => (hover = null)}
         >
           <g class="inner">
             {#if lit || pend}
@@ -331,7 +314,7 @@
             <rect class="accent" x="0" y="8" width="3" height={c.h - 16} rx="1.5" />
             <text class="kind" x="14" y="17">{KIND_GLYPH[c.node.kind] ?? '•'} {c.node.kind}</text>
             <text class="label" x="14" y="38">{trunc(c.node.label, 24)}</text>
-            <text class="summary" x="14" y="56">{trunc(c.node.summary, 30)}</text>
+            <text class="summary" x="14" y="56">{c.ghost ? 'outside · click to go there' : trunc(c.node.summary, 30)}</text>
             {#if kids}
               <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
               <g class="badge" transform="translate({c.w - 40} {c.h - 22})" onclick={(e) => onBadge(e, c.id)}>
@@ -364,6 +347,7 @@
     {/if}
   </svg>
   {#if showMini}<Minimap viewport={hud.focusPath.length ? null : vb} />{/if}
+  {#if hud.terrain}<Legend />{/if}
 </div>
 
 <style>
@@ -375,12 +359,15 @@
   .band-desc { font: 10px var(--sans); fill: var(--fg-3); }
   .lane-label { font: 600 12px var(--sans); fill: var(--fg-2); letter-spacing: .04em; }
   .lane-label.shared { fill: var(--fg-3); font-style: italic; }
-  .terrain { opacity: .16; pointer-events: none; }
+  .ground { opacity: .16; pointer-events: none; }
+  .fence { stroke: var(--line-2); stroke-width: 1; }
 
-  .edge { fill: none; stroke: var(--fg-3); stroke-width: 1.4; opacity: .7; transition: opacity .2s, stroke .2s; }
+  .edge { fill: none; stroke: var(--fg-3); stroke-width: 1.4; opacity: .5; transition: opacity .2s, stroke .2s; }
   .edge.lifted { stroke-width: 2.2; }
-  .edge.lit { stroke: var(--accent); opacity: 1; stroke-width: 2.4; }
-  .edge.dim { opacity: .14; }
+  .edge.ghost { opacity: .4; }
+  .edge.lit { stroke: var(--accent); opacity: 1; stroke-width: 2.4; stroke-dasharray: 7 5; animation: march 1.1s linear infinite; }
+  .edge.dim { opacity: .08; }
+  @keyframes march { to { stroke-dashoffset: -24; } }
   .edge-tag rect { fill: var(--bg-2); stroke: var(--line-2); }
   .edge-tag text { font: 10px var(--mono); fill: var(--fg-2); }
   .edge-tag.lit rect { stroke: var(--accent); }
@@ -404,6 +391,10 @@
   .card .label { font: 600 13px var(--sans); fill: var(--fg); }
   .card .summary { font: 11px var(--sans); fill: var(--fg-2); }
   .card.dim { opacity: .38; }
+  .card.ghost { opacity: .55; }
+  .card.ghost:hover { opacity: 1; }
+  .card.ghost .bg { fill: transparent; stroke-dasharray: 5 4; }
+  .card.ghost .summary { font-style: italic; }
   .card.selected .bg { stroke: var(--fg); stroke-width: 1.5; }
   .card.soft .bg { stroke: var(--accent); stroke-dasharray: 4 3; }
   .card.lit .bg { stroke: var(--accent); stroke-width: 2; fill: var(--card-2); filter: url(#glow); }

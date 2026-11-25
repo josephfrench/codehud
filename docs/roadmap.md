@@ -11,8 +11,9 @@ worked through on 2026-11-25. The first fourteen items are done; what remains is
    (`INTERRUPT_AFTER_MS` in `packages/hud/src/lib/state.svelte.ts`).
 2. **Staged zoom transition.** Grid: siblings compress and dim, the focus card grows, children and edges
    fade in (≈400 ms). 3D map: camera move, then sprites fade in. `prefers-reduced-motion` disables both.
-3. **Edges to the outside while zoomed in.** Stubs at the container boundary in both map styles, with a
-   count, a hover list and click-to-follow (`packages/hud/src/lib/stubs.ts`).
+3. **Edges to the outside while zoomed in.** First as stubs at the boundary; replaced on 2026-11-25 by ghost
+   cards: the outside neighbours laid out in their own rows and lanes with real paths (`ghostsFor` in
+   `packages/hud/src/lib/layout.ts`).
 4. **Hooks pack.** `templates/hooks/`: presence (PostToolUse), `AskUserQuestion` → HUD (PreToolUse, answer
    returned as `updatedInput`), SessionStart context only when the server is up, and `install.mjs` that merges
    them idempotently. `codehud install claude` copies the pack into the project and runs the installer.
@@ -44,10 +45,12 @@ worked through on 2026-11-25. The first fourteen items are done; what remains is
 15. **Packaging.** `codehud` npm package (`packages/cli`): `up`, `crawl`, `mcp`, `install claude`,
     `uninstall claude`, `status`, `link`, `demo`. Bundled with esbuild, HUD included, proven from a tarball.
     `SETUP.md` for agents and humans, `RELEASING.md`, CI workflow. Not yet published.
-16. **Footpaths and terrain.** Map edges are routed like paths, not wires: out of the card, into the gap,
-    along a free channel, round any card in the way (`packages/hud/src/lib/route.ts`, used by the grid and
-    the 3D floor). `b` toggles swimlane terrain: a texture and tone per lane as map columns and as ground
-    tiles under sprites in play view. Focusing a container (a store) now shows the edges of its children.
+16. **Routes and ground.** Map edges are routes: out of the card, along the gutter between rows, across a
+    row along a lane gutter, round any card in the way (`packages/hud/src/lib/route.ts`, grid and 3D floor).
+    They light up for a reason (agent trace, question, pointer) with direction and labels; the rest stays
+    faint. `b` turns on the ground: one terrain per layer with the same key in every view and a legend;
+    lanes are fenced districts. Cells order their nodes by call order. Focusing a container shows the
+    edges of its children.
     The demo pushes an updated map after the answer (new `stripe_events` table, KV edges, or the
     timestamp column) so the picture follows the decision. `POST /api/reset` (top-bar **reset**, two
     clicks) wipes sessions, questions and history and reloads the map; `pnpm demo` resets on start.
@@ -60,7 +63,7 @@ worked through on 2026-11-25. The first fourteen items are done; what remains is
   React Router nested `route()` children; Terraform module internals; `guards` edges from middleware
   matchers; an agent-run pass that writes the overlay (summaries, lane ratification) so the crawl output
   improves without hand edits.
-- **HUD.** Render `expired` questions distinctly; keep bottom-edge stubs clear of the dialogue; the dialogue
+- **HUD.** Render `expired` questions distinctly; the dialogue
   should not fall back to another session's question when the followed session has none; verify the
   hidden-tab branch of the interruption policy under automation.
 - **Server / bridge.** Bind remote sessions to `Tailscale-User-Login`; ACL hardening of `server.json` on

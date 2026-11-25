@@ -10,11 +10,11 @@
   import { untrack } from 'svelte';
   import { hud } from '../lib/state.svelte.ts';
   import { focusLayout } from '../lib/focusLayout.ts';
-  import { computeLayout, EDGE_STYLE, KIND_GLYPH } from '../lib/layout.ts';
+  import { computeLayout, ghostsFor, EDGE_STYLE, KIND_GLYPH } from '../lib/layout.ts';
   import { roundedPath, labelPoint } from '../lib/route.ts';
-  import { laneTexture, laneTone, type Texture } from '../lib/terrain.ts';
+  import { layerGround, type Ground } from '../lib/terrain.ts';
   import Terrain from './Terrain.svelte';
-  import { outsideStubs, type Stub } from '../lib/stubs.ts';
+  import Legend from './Legend.svelte';
   import { anchorFor } from '../lib/anchor.ts';
   import Sprite from './Sprite.svelte';
   import type { SysNode, EdgeKind } from '../../../schema/src/index.ts';
@@ -24,12 +24,11 @@
   const PLANE_W = 3200, PLANE_H = 2200;
   type Role = 'focal' | 'up' | 'down' | 'more' | 'far' | 'ghost' | 'node';
   interface Placed { id: string; node: SysNode | null; role: Role; x: number; y: number; s: number; children: SysNode[]; moreCount?: number; via?: string }
-  interface Line { key: string; from: string; to: string; label: string; flow: boolean; faint?: boolean; preview?: boolean; d: string; mx: number; my: number }
-  interface Band { label: string; color: string; y0: number; y1: number }
-  interface Col { label: string; x: number; x0: number; x1: number; tex: Texture | null; tone: string }
-  interface PlacedStub { stub: Stub; x: number; y: number }
+  interface Line { key: string; from: string; to: string; label: string; flow: boolean; faint?: boolean; preview?: boolean; /** exact nodes behind a lifted line */ touches?: string[]; d: string; mx: number; my: number }
+  interface Band { label: string; color: string; y0: number; y1: number; ground: Ground }
+  interface Col { label: string; x: number; x0: number; x1: number }
   const HIDDEN: EdgeKind[] = ['imports', 'depends'];
-  const EMPTY = { placed: [] as Placed[], lines: [] as Line[], bands: [] as Band[], cols: [] as Col[], stubs: [] as PlacedStub[], zone: null as SysNode | null, width: 1200 };
+  const EMPTY = { placed: [] as Placed[], lines: [] as Line[], bands: [] as Band[], cols: [] as Col[], zone: null as SysNode | null, width: 1200 };
   const FLOW: EdgeKind[] = ['calls', 'writes', 'emits', 'navigates'];
 
   const focalIds = $derived(hud.highlighted.size ? [...hud.highlighted] : hud.agentAt?.nodes ?? []);
@@ -117,17 +116,16 @@
         lines.push({ key: `pv:${a.id}>${pid}`, from: a.id, to: pid, label: i === 0 ? label : '', flow: true, preview: true, ...curve(a, b) });
       });
     }
-    return { placed, lines, bands: [], cols: [], stubs: [], zone: layout.container?.parent ?? null, width: 1400 };
+    return { placed, lines, bands: [], cols: [], zone: layout.container?.parent ?? null, width: 1400 };
   }
 
   // ----- map layout: the grid explorer's layout, on the floor -----------------------
   const K = 1.3;
   function mapScene(): typeof EMPTY {
     const idx = hud.index!;
-    const layout = computeLayout(idx, hud.visible, { showImports: hud.showImports });
+    const layout = computeLayout(idx, hud.visible, { showImports: hud.showImports, ghosts: ghostsFor(idx, hud.current?.id ?? null, { showImports: hud.showImports }) });
     const ox = layout.width / 2, oy = layout.height / 2;
-    const toPlane = (x: number, y: number) => ({ x: (x - ox) * K, y: (y - oy) * K });
-    const placed: Placed[] = layout.cards.map((c) => ({ id: c.id, node: c.node, role: 'node' as Role, x: (c.x + c.w / 2 - ox) * K, y: (c.y + c.h / 2 - oy) * K, s: 1, children: idx.childrenOf(c.id) }));
+    const placed: Placed[] = layout.cards.map((c) => ({ id: c.id, node: c.node, role: (c.ghost ? 'ghost' : 'node') as Role, x: (c.x + c.w / 2 - ox) * K, y: (c.y + c.h / 2 - oy) * K, s: c.ghost ? 0.8 : 1, children: idx.childrenOf(c.id) }));
     const pos = new Map(placed.map((p) => [p.id, p]));
     const lines: Line[] = [];
     for (const e of layout.edges) {
@@ -137,27 +135,11 @@
       // the grid's footpath, scaled onto the floor
       const d = roundedPath(e.points, 10 * K, (q) => ({ x: (q.x - ox) * K + PLANE_W / 2, y: (q.y - oy) * K + PLANE_H / 2 }));
       const m = labelPoint(e.points);
-      lines.push({ key: e.key, from: e.from, to: e.to, label, flow: FLOW.includes(e.kind), d, mx: (m.x - ox) * K, my: (m.y - oy) * K });
+      lines.push({ key: e.key, from: e.from, to: e.to, label, flow: FLOW.includes(e.kind), faint: e.ghost, touches: e.touches, d, mx: (m.x - ox) * K, my: (m.y - oy) * K });
     }
-    const bands: Band[] = layout.bands.map((b) => ({ label: b.layer.label, color: hud.layerColor(b.layer.id), y0: (b.y - oy) * K, y1: (b.y + b.h - oy) * K }));
-    const cols: Col[] = layout.columns.map((c) => ({ label: c.lane?.label ?? 'Shared', x: (c.x + c.w / 2 - ox) * K, x0: (c.x - ox) * K, x1: (c.x + c.w - ox) * K, tex: laneTexture(idx.map, c.lane?.id), tone: laneTone(idx.map, c.lane?.id) }));
-    // edges that leave this level: stubs just outside the bands, beams to the cards they touch
-    const stubs: PlacedStub[] = outsideStubs(idx, hud.current?.id ?? null, layout, { showImports: hud.showImports }).map((s) => {
-      const p = toPlane(s.x, s.y);
-      // sprites stand ~200px tall above their floor point, so top stubs sit well behind the first row
-      const off = s.side === 'top' ? { x: 0, y: -300 } : s.side === 'bottom' ? { x: 0, y: 90 } : s.side === 'left' ? { x: -160, y: 0 } : { x: 80, y: 0 };
-      return { stub: s, x: p.x + off.x, y: p.y + off.y };
-    });
-    for (const ps of stubs) {
-      const a: Placed = { id: 'stub:' + ps.stub.id, node: null, role: 'node', x: ps.x, y: ps.y, s: 1, children: [] };
-      for (const rep of ps.stub.insideReps) {
-        const b = pos.get(rep);
-        if (!b) continue;
-        const from = ps.stub.out && !ps.stub.inn ? b : a, to = from === a ? b : a;
-        lines.push({ key: `stub:${ps.stub.id}>${rep}`, from: from.id, to: to.id, label: '', flow: false, faint: true, ...curve(from, to) });
-      }
-    }
-    return { placed, lines, bands, cols, stubs, zone: null, width: layout.width * K };
+    const bands: Band[] = layout.bands.map((b) => ({ label: b.layer.label, color: hud.layerColor(b.layer.id), y0: (b.y - oy) * K, y1: (b.y + b.h - oy) * K, ground: layerGround(idx.map, b.layer.id) }));
+    const cols: Col[] = layout.columns.map((c) => ({ label: c.lane?.label ?? 'Shared', x: (c.x + c.w / 2 - ox) * K, x0: (c.x - ox) * K, x1: (c.x + c.w - ox) * K }));
+    return { placed, lines, bands, cols, zone: null, width: layout.width * K };
   }
 
   const scene = $derived.by(() => (!hud.index ? EMPTY : mode === 'map' ? mapScene() : playScene()));
@@ -232,6 +214,7 @@
   /** Triple / right click: in play mode focus the node; in map mode open its children (or focus it if it has none). */
   function activate(id: string) {
     hud.selected = null; target = null; hud.previewOption = null;
+    if (mode === 'map' && placed.find((p) => p.id === id)?.role === 'ghost') { hud.goTo([id], { select: true }); return; }
     if (mode === 'map') { if (hud.index?.hasChildren(id)) hud.descend(id); else { hud.highlighted = new Set([id]); hud.view = 'play'; } }
     else { hud.highlighted = new Set([id]); hud.roam(); }
   }
@@ -268,10 +251,6 @@
 
   const hot = (id: string) => !!hover && (id === hover || lines.some((l) => (l.from === hover && l.to === id) || (l.to === hover && l.from === id)));
   const layerColor = (n: SysNode | null) => hud.nodeColor(n);
-  function stubTip(e: MouseEvent, s: Stub) {
-    const dir = s.out && s.inn ? '↔' : s.out ? '→' : '←';
-    hud.showTip({ x: e.clientX, y: e.clientY, title: `${dir} ${s.label} · ${s.count} edge${s.count === 1 ? '' : 's'} (${s.kinds.join(', ')})`, lines: s.targets.map((t) => `${KIND_GLYPH[t.kind] ?? '•'} ${t.label}`), accent: hud.layerColor(s.layer) });
-  }
   function whyTip(e: MouseEvent, id: string) {
     const d = hud.latestDecision(id);
     if (!d) return;
@@ -279,7 +258,6 @@
     const n = hud.decisionsByNode.get(id)?.length ?? 0;
     hud.showTip({ x: e.clientX, y: e.clientY, title: 'Why is this here?', lines: [d.question, `✓ ${chosen}`, ...(n > 1 ? [`+${n - 1} earlier decision${n > 2 ? 's' : ''} · press h`] : [])], accent: 'var(--ok)' });
   }
-  const stubLabel = (s: Stub) => `${s.out && s.inn ? '↔' : s.out ? '→' : '←'} ${s.label.length > 16 ? s.label.slice(0, 15) + '…' : s.label}${s.count > 1 ? ` ×${s.count}` : ''}`;
   const stateOf = (id: string) => (previewSet.has(id) ? 'pending' : previewSet.size ? 'dim' : (hud.pendingByNode.get(id)?.length ?? 0) > 0 ? 'pending' : hud.agentSet.has(id) ? 'active' : hud.litSet.has(id) && mode === 'map' ? 'active' : hover && !hot(id) ? 'dim' : 'idle');
   const metaLine = (n: SysNode) => {
     const m = n.meta ?? {};
@@ -289,9 +267,13 @@
     return n.summary ?? '';
   };
   const billboard = $derived(`rotateZ(${-cam.yaw}deg) rotateX(${-cam.tilt}deg)`);
-  /** play view: the lane texture under a sprite, so the ground says which lane it stands in */
-  const tileOf = (p: Placed) => (hud.terrain && mode === 'play' && p.node && hud.index ? laneTexture(hud.map, hud.index.laneOf(p.node)) : null);
-  const toneOf = (p: Placed) => (p.node && hud.index ? laneTone(hud.map, hud.index.laneOf(p.node)) : 'var(--fg-3)');
+  /** play view: the ground under a sprite is its layer's, same key as the map */
+  const tileOf = (p: Placed) => (hud.terrain && mode === 'play' && p.node && hud.index ? layerGround(hud.map, hud.index.layerOf(p.node)) : null);
+  /** map mode: routes light up for the agent / a question (highlighted) or the sprite under the pointer */
+  const nodeLit = (id: string) => hud.highlighted.has(id) || (hud.index?.ancestors(id).some((a) => hud.highlighted.has(a.id)) ?? false);
+  const traceLit = (l: Line) => (l.touches ?? [l.from, l.to]).some(nodeLit) || (hud.litSet.has(l.from) && hud.litSet.has(l.to));
+  const lineLit = (l: Line) => (hover ? hover === l.from || hover === l.to : traceLit(l));
+  const lineDim = (l: Line) => (hover ? !(hover === l.from || hover === l.to) : hud.highlighted.size > 0 && !traceLit(l)) || (previewSet.size > 0 && !l.preview);
   const terrainY = $derived(scene.bands.length ? { y0: scene.bands[0].y0, y1: scene.bands[scene.bands.length - 1].y1 } : null);
   let vw = $state(window.innerWidth), vh = $state(window.innerHeight);
   const anchor = $derived(anchorFor(hud.blowoutFrom, vw, vh));
@@ -317,22 +299,26 @@
         {/each}
         {#if hud.terrain && terrainY}
           <svg class="terrain" viewBox="0 0 {PLANE_W} {PLANE_H}" width={PLANE_W} height={PLANE_H}>
-            {#each scene.cols as c (c.label + ':t')}
-              {#if c.tex}
-                <rect x={PLANE_W / 2 + c.x0} y={PLANE_H / 2 + terrainY.y0} width={c.x1 - c.x0} height={terrainY.y1 - terrainY.y0} fill={c.tone} opacity=".12" />
-                <rect x={PLANE_W / 2 + c.x0} y={PLANE_H / 2 + terrainY.y0} width={c.x1 - c.x0} height={terrainY.y1 - terrainY.y0} fill="url(#tex-{c.tex})" style="color: {c.tone}" opacity=".32" />
-              {/if}
+            {#each scene.bands as b (b.label + ':g')}
+              <rect x={PLANE_W / 2 + leftEdge - 40} y={PLANE_H / 2 + b.y0} width={scene.width / 2 - leftEdge + 80} height={b.y1 - b.y0} fill="url(#tex-{b.ground})" style="color: {b.color}" opacity=".34" />
+            {/each}
+            {#each scene.cols.slice(1) as c (c.label + ':f')}
+              <path d="M{PLANE_W / 2 + c.x0 - 3},{PLANE_H / 2 + terrainY.y0} V{PLANE_H / 2 + terrainY.y1} M{PLANE_W / 2 + c.x0 + 3},{PLANE_H / 2 + terrainY.y0} V{PLANE_H / 2 + terrainY.y1}" class="fence" />
             {/each}
           </svg>
         {/if}
         {#each scene.cols as c (c.label)}
-          <div class="collabel" style="left: {PLANE_W / 2 + c.x}px; top: {PLANE_H / 2 + (scene.bands[0]?.y0 ?? 0) - 70}px; transform: translate(-50%, -100%) {billboard}; {hud.terrain && c.tex ? `color: ${c.tone}` : ''}">{c.label}</div>
+          <div class="collabel" style="left: {PLANE_W / 2 + c.x}px; top: {PLANE_H / 2 + (scene.bands[0]?.y0 ?? 0) - 70}px; transform: translate(-50%, -100%) {billboard}">{c.label}</div>
         {/each}
 
         <svg class="links" viewBox="0 0 {PLANE_W} {PLANE_H}" width={PLANE_W} height={PLANE_H}>
+          <defs>
+            <marker id="arrow-floor" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="var(--accent)" /></marker>
+          </defs>
           {#each lines as l (l.key)}
-            <g class="link" class:hot={hover === l.from || hover === l.to} class:dim={(!!hover && hover !== l.from && hover !== l.to) || (previewSet.size > 0 && !l.preview)} class:faint={l.faint} class:preview={l.preview} transition:fade={{ duration: 200 }}>
-              <path d={l.d} class="beam" /><path d={l.d} class="dots" class:flow={l.flow} />
+            {@const lit = mode === 'map' && lineLit(l)}
+            <g class="link" class:hot={hover === l.from || hover === l.to} class:lit class:dim={mode === 'map' ? lineDim(l) : (!!hover && hover !== l.from && hover !== l.to) || (previewSet.size > 0 && !l.preview)} class:faint={l.faint} class:preview={l.preview} transition:fade={{ duration: 200 }}>
+              <path d={l.d} class="beam" /><path d={l.d} class="dots" class:flow={l.flow} marker-end={lit ? 'url(#arrow-floor)' : undefined} />
             </g>
           {/each}
         </svg>
@@ -340,23 +326,16 @@
           <div class="zone" transition:fade><span style="transform: {billboard}">{scene.zone.label}</span></div>
         {/if}
         {#each lines as l (l.key + ':l')}
-          {#if l.label}
+          {#if l.label && (mode !== 'map' || lineLit(l))}
             <div class="linklabel" class:dim={(!!hover && hover !== l.from && hover !== l.to) || (previewSet.size > 0 && !l.preview)} class:preview={l.preview} class:faint={l.faint} style="left: {PLANE_W / 2 + l.mx}px; top: {PLANE_H / 2 + l.my}px; transform: translate(-50%, -50%) {billboard}">{l.label}</div>
           {/if}
-        {/each}
-
-        {#each scene.stubs as ps (ps.stub.id)}
-          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
-          <div class="stubpill" style="left: {PLANE_W / 2 + ps.x}px; top: {PLANE_H / 2 + ps.y}px; transform: translate(-50%, -50%) {billboard}; --c: {hud.layerColor(ps.stub.layer)}"
-            onclick={(e) => { e.stopPropagation(); if (suppressClick) return; hud.hideTip(); hud.goTo(ps.stub.targets.map((t) => t.id)); }}
-            onmouseenter={(e) => stubTip(e, ps.stub)} onmousemove={(e) => stubTip(e, ps.stub)} onmouseleave={() => hud.hideTip()}>{stubLabel(ps.stub)}</div>
         {/each}
 
         {#key levelKey}
         {#each placed as p (p.id)}
           {@const tile = tileOf(p)}
           {#if tile}
-            <svg class="tile" viewBox="0 0 240 110" style="left: {PLANE_W / 2 + p.x}px; top: {PLANE_H / 2 + p.y}px; --s: {p.s}; color: {toneOf(p)}">
+            <svg class="tile" viewBox="0 0 240 110" style="left: {PLANE_W / 2 + p.x}px; top: {PLANE_H / 2 + p.y}px; --s: {p.s}; color: {layerColor(p.node)}">
               <ellipse cx="120" cy="55" rx="116" ry="50" fill="currentColor" opacity=".14" />
               <ellipse cx="120" cy="55" rx="116" ry="50" fill="url(#tex-{tile})" opacity=".4" />
               <ellipse cx="120" cy="55" rx="116" ry="50" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="2" />
@@ -382,7 +361,8 @@
                 {#if p.role === 'focal' && metaLine(p.node)}<span class="meta">{metaLine(p.node)}</span>{/if}
               </div>
               <Sprite kind={p.node.kind} size={136} color={stateOf(p.id) === 'pending' ? 'var(--accent)' : layerColor(p.node)} state={stateOf(p.id)} />
-              {#if p.children.length}<div class="kids">{p.children.length} inside{mode === 'map' ? ' · right-click to open' : ''}</div>{/if}
+              {#if p.role === 'ghost'}<div class="kids">outside · right-click to go there</div>
+              {:else if p.children.length}<div class="kids">{p.children.length} inside{mode === 'map' ? ' · right-click to open' : ''}</div>{/if}
               {#if hud.agentSet.has(p.id)}<div class="here" style="color: {hud.agentColorByNode.get(p.id) ?? 'var(--agent)'}">agent here</div>{/if}
               {#if previewSet.has(p.id)}<div class="would">would touch</div>{/if}
               {#if hud.decisionsByNode.has(p.id)}
@@ -400,6 +380,7 @@
     </div>
   </div>
 
+  {#if hud.terrain}<Legend />{/if}
   {#if hud.selected && hud.blowoutFrom}
     <svg class="callout" transition:fade={{ duration: 200 }}>
       <line x1={hud.blowoutFrom.x} y1={hud.blowoutFrom.y} x2={anchor.side === 'right' ? anchor.left : anchor.left + 400} y2={anchor.top + 150} />
@@ -425,6 +406,7 @@
   .collabel { position: absolute; transform-origin: 50% 100%; font: 600 24px var(--sans); color: var(--fg-2); white-space: nowrap; letter-spacing: .04em; }
   .defs { position: absolute; left: 0; top: 0; }
   .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
+  .fence { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
   .tile { position: absolute; width: calc(240px * var(--s)); height: calc(110px * var(--s)); transform: translate(-50%, -50%); pointer-events: none; overflow: visible; }
   .links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
   .beam { fill: none; stroke: var(--agent); stroke-width: 14; opacity: .07; }
@@ -435,6 +417,9 @@
   .link.dim { opacity: .15; }
   .link.faint { opacity: .4; }
   .link.faint .dots { stroke-width: 1.8; }
+  .link.lit .dots { stroke: var(--accent); opacity: 1; stroke-width: 3; animation: flow 1.4s linear infinite; }
+  .link.lit .beam { stroke: var(--accent); opacity: .2; }
+  .link.lit { opacity: 1; }
   .link.preview .dots { stroke: var(--accent); opacity: 1; animation-duration: 1.6s; }
   .link.preview .beam { stroke: var(--accent); opacity: .18; }
   .linklabel { position: absolute; transform-origin: 50% 50%; font: 11px var(--mono); color: var(--fg-2); background: color-mix(in srgb, var(--bg-2) 85%, transparent); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
@@ -449,6 +434,8 @@
   .res.far { opacity: .45; }
   .res.far:hover { opacity: .9; }
   .res.ghost .plate { border-style: dashed; }
+  .res.ghost { opacity: .6; }
+  .res.ghost:hover { opacity: 1; }
   .res.selected .plate { border-color: var(--fg); }
   .plate { display: flex; flex-direction: column; align-items: center; gap: 1px; margin-bottom: -4px; padding: 4px 12px; border-radius: 8px; background: color-mix(in srgb, var(--bg-2) 82%, transparent); border: 1px solid var(--line); white-space: nowrap; }
   .plate.pending { border-color: var(--accent); }
