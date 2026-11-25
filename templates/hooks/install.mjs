@@ -44,7 +44,8 @@ const ENTRIES = [
   { event: 'PreToolUse', matcher: 'AskUserQuestion', hook: { type: 'command', command: `node ${hookPath('ask.mjs')}`, timeout: 3600 } },
   { event: 'SessionStart', matcher: undefined, hook: { type: 'command', command: `node ${hookPath('session-start.mjs')}`, timeout: 10 } },
 ];
-const isOurs = (h) => typeof h?.command === 'string' && /templates\/hooks\/(presence|ask|session-start)\.mjs/.test(h.command.replace(/\\/g, '/'));
+// ours = one of the three hook files wherever the pack lives: templates/hooks in a clone, .claude/hooks/codehud when copied by the CLI
+const isOurs = (h) => typeof h?.command === 'string' && /\/(templates\/hooks|hooks\/codehud)\/(presence|ask|session-start)\.mjs(\s|\"|$)/.test(h.command.replace(/\\/g, '/'));
 
 const changes = [];
 let settings = {};

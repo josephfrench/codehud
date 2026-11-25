@@ -13,7 +13,7 @@
   "scripts": {
     "crawl": "node src/cli.ts",
     "self": "node src/cli.ts ../.. --out examples/self.system.json",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.ts"
   },
   "dependencies": {
     "@codehud/schema": "workspace:*",

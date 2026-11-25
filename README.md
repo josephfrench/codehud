@@ -25,13 +25,27 @@ packages/schema    the SystemMap types + validation + the HTTP/SSE protocol  (co
 packages/server    local HTTP server: serves the HUD, holds the map, routes focus/questions over SSE
 packages/hud       the browser UI (Vite + Svelte 5 + SVG)
 packages/mcp       MCP stdio server the agent talks to; forwards to the local server
-packages/crawler   turns a repo into a SystemMap (web-app heuristics first)
+packages/crawler   turns a repo into a SystemMap: adapters per framework / ORM / infra tool, TS compiler API imports
+packages/cli       the `codehud` npm package: up, crawl, mcp, install claude, status, link, demo
+packages/acp-spike Agent Client Protocol client spike (permission requests -> HUD questions)
 examples/          sample system maps
 docs/              design brief, research notes, roadmap
 templates/         CLAUDE.md snippet and Claude Code hooks for repos that adopt codehud
 ```
 
-## Quick start
+## Install in a repo (npm)
+
+```sh
+npx -y codehud install claude          # .mcp.json, hooks pack, CLAUDE.md section, crawl -> .codehud/system.json
+npx -y codehud up --map .codehud/system.json
+```
+
+Open the printed `http://127.0.0.1:4777/#t=…` link, start Claude Code in the repo, and the agent's
+`hud_focus` / `hud_ask` calls land on the map. `npx -y codehud demo` shows the flow on a sample system
+first. Full steps, what gets written where, and uninstall: `SETUP.md`. (Not published yet; until then,
+`pnpm cli …` from a clone does the same.)
+
+## Quick start from a clone
 
 ```sh
 pnpm install
@@ -56,16 +70,41 @@ A running server also takes a map from the agent (`hud_load_map`) or from `PUT /
 HUD from a real (simulated) agent process instead of the in-browser demo: `pnpm start:sample` then
 `pnpm demo` in a second terminal.
 
+### Crawler coverage
+
+`pnpm crawl <repo>` reads a repository and never runs it (enforced in code, tested with a booby-trapped
+fixture). Adapters detect themselves from manifests and files:
+
+- Web: Astro, Next (app + pages), SvelteKit, Remix / React Router v7, react-router SPAs, TanStack Router, Vue + Nuxt, Angular
+- Servers: Express, Hono, Fastify, Koa, NestJS (controllers, guards, Bull queues, events, cron)
+- Persistence: Drizzle, Prisma, Mongoose, TypeORM, Sequelize, DynamoDB, Supabase, Django ORM, SQLAlchemy
+- Infrastructure: wrangler, Terraform, AWS CDK, serverless.yml, SAM / CloudFormation, vercel.json, Netlify, docker-compose
+- Python: FastAPI, Flask, Django, Celery; dependencies from requirements / pyproject
+
+Imports come from the TypeScript compiler API (parse only, tsconfig paths honoured). Lanes come from route
+vocabulary, or one per workspace package. Corrections live in `.codehud/map.overrides.json`
+(`--write-overlay-template`) and are re-applied on every crawl. `--watch --push` keeps the HUD live.
+Not covered yet: Go, Java, C#. Any stack can still be mapped by hand or by the agent (`hud_load_map`).
+
 ### Hooking up Claude Code
 
 ```sh
 claude mcp add codehud -- node C:/path/to/codehud/packages/mcp/src/index.ts
+node templates/hooks/install.mjs C:/path/to/repo      # or: codehud install claude
 ```
 
-Then add `templates/CLAUDE.md.snippet` to the repo's `CLAUDE.md` so the agent prefers `hud_ask` over
-plain-text questions and calls `hud_focus` as it moves through the system. For passive presence (the blue
-dot follows every file the agent reads or edits, without the model doing anything), register
-`templates/hooks/presence.mjs` as a `PostToolUse` hook; the file header shows the settings snippet.
+The installer wires three hooks and appends `templates/CLAUDE.md.snippet` to the repo's `CLAUDE.md`:
+presence (the blue dot follows every file the agent touches), `AskUserQuestion` → the HUD when a tab is
+open (the answer flows back as `updatedInput`), and a SessionStart note telling the model codehud is live.
+`--global`, `--uninstall`, `--dry-run`, `--json`.
+
+If `hud_ask` finds no browser it opens the HUD once, then falls back to a terminal form dialog (MCP
+elicitation), then to plain text; the question stays pending so `hud_await` can still pick it up.
+Questions expire after 30 min (`--question-ttl`); per-session rate limits return 429.
+
+Remote: `pnpm start --allow-remote mybox.tail1234.ts.net --operator-token <secret>` then
+`tailscale serve --bg 4777`; browsers sign in with the operator token. Default stays loopback-only.
+`CODEHUD_HOME` relocates `server.json`.
 
 MCP tools: `hud_get_map`, `hud_find_nodes`, `hud_focus`, `hud_note`, `hud_ask`, `hud_await`, `hud_load_map`.
 `hud_ask` waits up to 100 s per call (Claude Code backgrounds longer MCP calls) and returns a question id
@@ -94,25 +133,39 @@ Three views, switched from the top bar or with `m` (map) and `d` (docs):
 | `1`…`9`, then `↵` | preview an answer's path, then confirm |
 | `←` `→` `↑` `↓` | map: siblings or lanes, up a level, open the selected node |
 | `Esc` | close the card, clear the preview, or go up a level |
-| `c` `l` `i` `t` `?` `/` | collapse the dialogue, log, import edges, theme, help, search |
+| `c` `l` `h` `i` `t` `?` `/` | collapse the dialogue, log, history, import edges, theme, help, search |
 | `Shift+F` | follow the agent / free roam |
 
 Amber means something needs you. Blue is where the agent is. Layout is deterministic: the same map at
-the same level always looks the same. `/demo` is the in-browser tour; `/assets` shows every resource sprite in
+the same level always looks the same.
+
+- A new question never steals focus: the node and the top bar go amber and a quiet toast appears; the
+  view only moves when this window is focused, when you come back to it, or after 20 s unanswered.
+- Zoomed into a node, connections that leave that level appear as stubs at the edge of the map (grid and
+  3D). Hover a stub to see what is behind it, click to follow.
+- `h` opens History: decisions, questions, notes and map loads, filterable, each linked to its nodes.
+  `✓n` on a node answers "why is this here?" on hover.
+- Several agents at once: each session has its own colour; click a session in the top bar to follow only
+  that one. Pending counts group by session.
+- Maps may declare any layer set in any order; `examples/service-mesh.system.json` shows a non-web one.
+  Layers without a known colour get a palette slot or their own `color`. `/demo` is the in-browser tour; `/assets` shows every resource sprite in
 its four states.
 
-## Security posture (proof of concept)
+## Security posture
 
-Loopback bind with an exact Host allowlist; random per-run bearer token in `~/.codehud/server.json` for
-local clients; the browser receives the token in the URL fragment and exchanges it for a separate session
-cookie (`HttpOnly`, `SameSite=Strict`); cookie-authenticated requests must present an exact-match `Origin`;
-JSON content type required on writes; no CORS headers; every `/api/*` route except `/api/health` requires
-auth, GETs and SSE included; CSP on the page; markdown from the agent is sanitised with DOMPurify; tool
-results are framed as untrusted data. The crawler only reads and parses files and never executes repo
-code. Details and the remaining backlog: `docs/research/security.md`.
+Loopback bind with an exact Host allowlist (`localhost` and `[::1]` redirect to `127.0.0.1`); random per-run
+bearer token in `~/.codehud/server.json` for local clients; the browser receives the token in the URL
+fragment and exchanges it for a separate session cookie (`HttpOnly`, `SameSite=Strict`);
+cookie-authenticated requests must present an exact-match `Origin`; JSON content type required on writes;
+no CORS headers; every `/api/*` route except `/api/health` requires auth, GETs and SSE included; per-session
+token buckets; questions expire; SSE replay is bounded; CSP on the page; markdown from the agent is
+sanitised with DOMPurify; tool results are framed as untrusted data. Remote mode is opt-in and needs an
+operator token. The crawler only reads and parses files and never executes repo code, enforced by a
+runtime guard. Details and the remaining backlog: `docs/research/security.md`.
 
 ## Status
 
-Proof of concept, 2026-11-24. Works end to end with the sample map and the demo script. `docs/roadmap.md`
-lists what comes next; the research behind it is in `docs/research/` (crawling, interface patterns,
-terminal-to-browser connection, security) and the concepting prompt is in `docs/design-brief.md`.
+2026-11-25: the first roadmap is done (see `docs/roadmap.md` for what landed and what is next). Tests:
+`pnpm test` (server 20, bridge 6, crawler 31). The research behind the design is in `docs/research/`
+(crawling, interface patterns, terminal-to-browser connection, security, ACP) and the concepting prompt is
+in `docs/design-brief.md`. The npm package is built and proven from a tarball but not published yet.

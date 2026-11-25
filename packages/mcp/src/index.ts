@@ -235,7 +235,7 @@ async function awaitAnswer(id: string, timeoutSeconds: number, extra?: Extra): P
 // ---------------------------------------------------------------------------
 // MCP server
 // ---------------------------------------------------------------------------
-const server = new McpServer({ name: 'codehud', version: '0.0.1' });
+const server = new McpServer({ name: 'codehud', version: '0.1.0' });
 
 const fileRef = z.object({ path: z.string(), lines: z.tuple([z.number(), z.number()]).optional(), role: z.string().optional() });
 

@@ -31,7 +31,8 @@ const ENTRY = {
 };
 const INFO_FILE = path.join(os.homedir(), '.codehud', 'server.json');
 const MAP_REL = '.codehud/system.json';
-const HOOK_NAME = 'codehud-presence.mjs';
+/** The hooks pack is copied into <hooksDir>/codehud/ so the project has no dependency on where codehud is installed. */
+const HOOKS_SUBDIR = 'codehud';
 const SNIPPET_MARK = '## codehud (system HUD)';
 
 // ---------------------------------------------------------------------------
@@ -281,22 +282,10 @@ async function cmdInstall(pos: string[], flags: Flags) {
     fail('`claude` is not on PATH, so the user-scope MCP registration cannot be done here. Run: claude mcp add --scope user codehud -- ' + [launch.command, ...launch.args].join(' '));
   }
 
-  // 2. presence hook (copied, so it has no dependency on where codehud is installed)
+  // 2. hooks pack (presence, AskUserQuestion -> HUD, SessionStart note), copied then installed by its own installer
   if (flags['no-hooks'] !== true) {
-    const src = path.join(ENTRY.templates, 'hooks', 'presence.mjs');
-    if (!fs.existsSync(src)) fail(`hook template missing at ${src}`);
-    const dst = path.join(t.hooksDir, HOOK_NAME);
-    fs.mkdirSync(t.hooksDir, { recursive: true });
-    fs.copyFileSync(src, dst);
-    const settings = readJson(t.settingsFile) ?? {};
-    settings.hooks ??= {};
-    const list: any[] = (settings.hooks.PostToolUse ??= []);
-    const command = `node "${posix(dst)}"`;
-    const existing = list.find((g) => Array.isArray(g?.hooks) && g.hooks.some((h: any) => typeof h?.command === 'string' && h.command.includes(HOOK_NAME)));
-    const group = { matcher: 'Edit|Write|MultiEdit|Read|NotebookEdit', hooks: [{ type: 'command', command, async: true, timeout: 5 }] };
-    if (existing) Object.assign(existing, group); else list.push(group);
-    writeJson(t.settingsFile, settings);
-    done.push(`presence hook → ${dst}, registered as PostToolUse in ${t.settingsFile}`);
+    const r = runHooksInstaller(t, false);
+    done.push(`hooks pack → ${r.dir}; ${r.changes.join('; ') || 'already installed'} (${t.settingsFile})`);
   }
 
   // 3. CLAUDE.md snippet (project scope only)
@@ -328,6 +317,23 @@ async function cmdInstall(pos: string[], flags: Flags) {
   if (!haveClaude()) console.log('(`claude` was not found on PATH; the files above are still correct once it is installed.)');
 }
 
+/** Copy templates/hooks into the target and run its install.mjs (idempotent; --json). CLAUDE.md is handled by the CLI itself. */
+function runHooksInstaller(t: Target, uninstall: boolean): { dir: string; changes: string[] } {
+  const src = path.join(ENTRY.templates, 'hooks');
+  if (!fs.existsSync(path.join(src, 'install.mjs'))) fail(`hooks pack missing at ${src}`);
+  const dir = path.join(t.hooksDir, HOOKS_SUBDIR);
+  if (!uninstall) {
+    fs.mkdirSync(dir, { recursive: true });
+    for (const f of fs.readdirSync(src)) if (f.endsWith('.mjs')) fs.copyFileSync(path.join(src, f), path.join(dir, f));
+  }
+  const args = [path.join(dir, 'install.mjs'), ...(t.project ? [t.project] : ['--global']), '--no-claude-md', '--json', ...(uninstall ? ['--uninstall'] : [])];
+  const r = spawnSync(process.execPath, args, { encoding: 'utf8' });
+  if (r.status !== 0) fail(`hooks installer failed: ${(r.stderr || r.stdout || '').trim()}`);
+  let changes: string[] = [];
+  try { changes = JSON.parse(r.stdout).changes ?? []; } catch { changes = [r.stdout.trim()]; }
+  return { dir, changes };
+}
+
 async function cmdUninstall(pos: string[], flags: Flags) {
   if (pos[0] !== 'claude') return fail('only `codehud uninstall claude` is supported right now');
   const t = target(flags);
@@ -339,14 +345,13 @@ async function cmdUninstall(pos: string[], flags: Flags) {
     const r = spawnSync('claude', ['mcp', 'remove', '--scope', 'user', 'codehud'], { stdio: 'inherit', shell: process.platform === 'win32' });
     if (r.status === 0) done.push('removed the user-scope MCP registration');
   }
-  const settings = readJson(t.settingsFile);
-  if (settings?.hooks?.PostToolUse) {
-    const before = settings.hooks.PostToolUse.length;
-    settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter((g: any) => !(Array.isArray(g?.hooks) && g.hooks.some((h: any) => String(h?.command ?? '').includes(HOOK_NAME))));
-    if (settings.hooks.PostToolUse.length !== before) { writeJson(t.settingsFile, settings); done.push(`removed the presence hook from ${t.settingsFile}`); }
+  const hooksDir = path.join(t.hooksDir, HOOKS_SUBDIR);
+  if (fs.existsSync(path.join(hooksDir, 'install.mjs'))) {
+    const r = runHooksInstaller(t, true);
+    if (r.changes.length) done.push(`hooks: ${r.changes.join('; ')} (${t.settingsFile})`);
+    fs.rmSync(hooksDir, { recursive: true, force: true });
+    done.push(`deleted ${hooksDir}`);
   }
-  const hook = path.join(t.hooksDir, HOOK_NAME);
-  if (fs.existsSync(hook)) { fs.rmSync(hook); done.push(`deleted ${hook}`); }
   if (t.claudeMd && fs.existsSync(t.claudeMd)) {
     const cur = fs.readFileSync(t.claudeMd, 'utf8');
     const i = cur.indexOf(SNIPPET_MARK);

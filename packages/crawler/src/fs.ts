@@ -4,7 +4,7 @@ import type { RepoFile } from './types.ts';
 
 export const IGNORED_DIRS = new Set([
   'node_modules', 'dist', '.git', 'build', '.astro', '.svelte-kit', '.next', '.output', '.vercel',
-  '.wrangler', '.turbo', '.cache', 'coverage', 'out', '.idea', '.vscode', '.pnpm-store', 'tmp', '.codehud',
+  '.wrangler', '.turbo', '.cache', 'coverage', 'out', '.idea', '.vscode', '.pnpm-store', 'tmp', '.codehud', '.claude',
   // test data: never part of the system being described (crawl such a directory directly if it is the system)
   'fixtures', '__fixtures__', 'testdata', '__snapshots__', '.venv', 'venv', '__pycache__', '.mypy_cache', '.pytest_cache', '.terraform', 'cdk.out', '.serverless', '.aws-sam', 'target', 'vendor',
 ]);

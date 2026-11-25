@@ -1,41 +1,68 @@
 # Roadmap
 
-Consolidated from the four research notes in `docs/research/` after the first proof of concept.
-Ordered by what most improves the ten-second-answer moment.
+Consolidated from the four research notes in `docs/research/` after the first proof of concept, then
+worked through on 2026-11-25. The first fourteen items are done; what remains is listed under "Next" and
+"Later" with the caveats each track reported.
 
-## Now (POC hardening)
+## Done (2026-11-25)
 
-1. **Interruption policy.** Pending question = badge + header count + soft tone by default; auto-zoom only
-   when the HUD window already has focus or the agent has waited more than N seconds. Never steal OS focus.
-   (`interface-patterns.md` §3, §7)
-2. **Staged zoom transition.** Siblings compress and dim, focus grows, children and edges fade in, 250-400 ms.
-   Today it is a plain viewBox tween. (`interface-patterns.md` §2)
-3. **Edges to the outside while zoomed in.** Show stubs at the container boundary for edges that leave the
-   current level, with a count and a hover list, so a nested view is not an island.
-4. **Hooks pack.** Ship `templates/hooks/presence.mjs` plus a `PreToolUse` hook on `AskUserQuestion` that
-   redirects plain-text questions into the HUD, and a `SessionStart` hook that injects "codehud is live"
-   only when the server is up. (`connection.md` §1, §6)
-5. **No-browser fallback.** If no SSE client is connected when `hud_ask` is called, open the URL once, wait
-   ~10 s, then fall back to MCP form elicitation, then to a plain-text result. (`connection.md` §4)
-6. **Security backlog, must-have tier.** Per-session `hud_ask` token bucket, question expiry, SSE event ids +
-   replay, `localhost` → `127.0.0.1` redirect, crawler hard rule enforced in code (never import repo code).
-   (`security.md` §7)
+1. **Interruption policy.** A new question never steals focus: amber badge, top-bar count, quiet toast.
+   The view only moves when the window has focus, when it regains focus, or after 20 s unanswered
+   (`INTERRUPT_AFTER_MS` in `packages/hud/src/lib/state.svelte.ts`).
+2. **Staged zoom transition.** Grid: siblings compress and dim, the focus card grows, children and edges
+   fade in (≈400 ms). 3D map: camera move, then sprites fade in. `prefers-reduced-motion` disables both.
+3. **Edges to the outside while zoomed in.** Stubs at the container boundary in both map styles, with a
+   count, a hover list and click-to-follow (`packages/hud/src/lib/stubs.ts`).
+4. **Hooks pack.** `templates/hooks/`: presence (PostToolUse), `AskUserQuestion` → HUD (PreToolUse, answer
+   returned as `updatedInput`), SessionStart context only when the server is up, and `install.mjs` that merges
+   them idempotently. `codehud install claude` copies the pack into the project and runs the installer.
+5. **No-browser fallback.** `hud_ask` ladder: browser → open the HUD once and wait 10 s → MCP form
+   elicitation when the client supports it → plain text with the options and the question id.
+6. **Security must-haves.** Per-session token buckets (429 + Retry-After), question expiry (30 min default,
+   `--question-ttl`), SSE event ids with Last-Event-ID replay, `localhost`/`[::1]` → `127.0.0.1` redirect,
+   crawler execution guard enforced in code with a booby-trapped fixture test. `CODEHUD_HOME` relocates
+   `server.json`.
+7. **Crawler v1.** Adapter architecture, TypeScript compiler API import graph (parse only, tsconfig paths),
+   `.codehud/map.overrides.json` overlay re-applied on every crawl, package lanes for repos without routes,
+   `--watch --push`, and adapters for Angular, Vue/Nuxt, react-router, TanStack Router, NestJS, Mongoose,
+   TypeORM, Sequelize, DynamoDB, Supabase, Terraform, AWS CDK, serverless.yml, SAM/CloudFormation,
+   vercel.json, Netlify, docker-compose, Python (FastAPI, Flask, Django, Celery). 31 tests on 16 fixtures.
+8. **Decision log.** History drawer (`h`): decisions, questions, notes, map loads, filterable, linked to
+   nodes; `✓n` on a node answers "why is this here?" on hover.
+9. **Option blast radius.** Each answer option previews the nodes it would touch; confirm to send.
+10. **Minimap + search polish.** Search ranks by pending questions and recent agent focus; the minimap also
+    appears in the grid when zoomed in or when the layout is wider than the viewport.
+11. **Multiple agents.** Server-assigned session colours, coloured markers everywhere, a session picker in
+    the top bar that limits follow mode, pending counts grouped by session.
+12. **ACP driver spike.** `docs/research/acp.md` plus `packages/acp-spike`: an ACP client that turns
+    `session/request_permission` into a HUD question and file locations into focus, verified against a stub
+    agent in process.
+13. **Remote mode.** `--allow-remote host --operator-token …` (refuses to start without the token), Tailscale
+    serve recipe in `connection.md`, threat notes in `security.md`.
+14. **User-defined layer sets.** The HUD renders whatever `map.layers` declares, in order, with palette
+    colours for unknown ids; `examples/service-mesh.system.json` proves a non-web layer set.
+15. **Packaging.** `codehud` npm package (`packages/cli`): `up`, `crawl`, `mcp`, `install claude`,
+    `uninstall claude`, `status`, `link`, `demo`. Bundled with esbuild, HUD included, proven from a tarball.
+    `SETUP.md` for agents and humans, `RELEASING.md`, CI workflow. Not yet published.
 
 ## Next
 
-7. **Crawler v1.** TypeScript compiler API import graph instead of regex; lane clustering by route prefix +
-   import locality; stable ids; incremental re-crawl on `FileChanged`. An AI-assisted pass writes summaries
-   and proposes lanes; the deterministic pass owns ids and edges. (`crawling.md`)
-8. **Decision log.** Answered questions pinned to nodes as chips (done) plus a filterable timeline and
-   "why is this here?" on hover.
-9. **Option blast radius.** Hovering an answer option previews which nodes it would touch.
-10. **Minimap + search polish.** Minimap when zoomed in or narrow; `/` search ranks by recency of agent focus.
-11. **Multiple agents.** Per-session colours, routing of answers to the right waiting tool call (works today
-    by question id), session picker.
+- **Publish.** `npm publish` of `codehud` with provenance (steps in `RELEASING.md`); CI has not run on
+  GitHub yet, so the first push will tell.
+- **Crawler.** Go, Java and C# (tree-sitter or per-language regex passes); CDK cross-file construct references;
+  React Router nested `route()` children; Terraform module internals; `guards` edges from middleware
+  matchers; an agent-run pass that writes the overlay (summaries, lane ratification) so the crawl output
+  improves without hand edits.
+- **HUD.** Render `expired` questions distinctly; keep bottom-edge stubs clear of the dialogue; the dialogue
+  should not fall back to another session's question when the followed session has none; verify the
+  hidden-tab branch of the interruption policy under automation.
+- **Server / bridge.** Bind remote sessions to `Tailscale-User-Login`; ACL hardening of `server.json` on
+  Windows (`icacls`) and `0600` elsewhere; env overrides for the HUD dist and server entry so the CLI build
+  no longer rewrites source text.
+- **ACP.** Run the spike against a real ACP agent over stdio (the `--agent` path is written but unverified).
 
 ## Later
 
-12. **ACP driver spike.** Speak Agent Client Protocol as a client so Gemini CLI / OpenCode / Cursor agents can
-    be driven from the browser; keep the sidecar model as the default. (`connection.md` §2)
-13. **Remote mode.** Explicit `--allow-remote` with an operator token; `tailscale serve` recipe.
-14. **Beyond web apps.** Layer vocabularies for services/monorepos/systems code; user-defined layer sets.
+- Layer vocabularies and lane heuristics for systems code and large monorepos.
+- Multiple HUD windows per map (one per agent) and a shared decision log across sessions.
+- Replace the regex Python pass with a parser once a non-native option is available.
