@@ -5,7 +5,11 @@
   import { md, timeAgo } from '../lib/md.ts';
 
   const q = $derived(hud.activeQuestion);
-  const session = $derived(hud.sessions.filter((s) => hud.now - new Date(s.lastSeen).getTime() < 10 * 60_000).at(-1));
+  const session = $derived(
+    (q?.session ? hud.sessions.find((s) => s.id === q.session) : undefined)
+    ?? (hud.followSession ? hud.sessions.find((s) => s.id === hud.followSession) : undefined)
+    ?? hud.liveSessions.at(-1));
+  const sessionColor = $derived(hud.sessionColor(session?.id ?? q?.session));
   const status = $derived(q?.status === 'pending' ? 'needs you' : session?.status ?? 'offline');
   let text = $state('');
   let more = $state(false);
@@ -32,14 +36,14 @@
     sending = true;
     try { await hud.answer(q, body); text = ''; hud.previewOption = null; } finally { sending = false; }
   }
-  const lastNote = $derived([...hud.activity].reverse().find((a) => a.kind === 'note' || a.kind === 'focus'));
+  const lastNote = $derived([...hud.activity].reverse().find((a) => (a.kind === 'note' || a.kind === 'focus') && (!hud.followSession || a.session === hud.followSession)));
 </script>
 
 {#if more && q?.moreContext}
   <div class="more md" transition:fly={{ x: -40, duration: 220 }}><button class="ghost closemore" onclick={() => (more = false)}>✕</button>{@html md(q.moreContext)}</div>
 {/if}
 
-<section class="dialogue" class:pending={q?.status === 'pending'} class:collapsed={!hud.questionOpen}>
+<section class="dialogue" class:pending={q?.status === 'pending'} class:collapsed={!hud.questionOpen} style="--agent: {sessionColor}">
   <div class="avatar" class:talking={q?.status === 'pending'}>
     <svg viewBox="0 0 100 100" width="64" height="64" aria-hidden="true">
       <circle cx="50" cy="50" r="40" class="ring" />

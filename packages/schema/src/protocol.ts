@@ -77,7 +77,7 @@ export interface AgentSession {
   cwd?: string;
   lastSeen: string;
   status?: 'idle' | 'working' | 'waiting';
-  /** Stable per-session colour assigned by the server (CSS colour string). */
+  /** Stable per-session CSS colour assigned by the server; the HUD derives one from the id when absent. */
   color?: string;
 }
 
