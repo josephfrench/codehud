@@ -44,6 +44,12 @@ worked through on 2026-11-25. The first fourteen items are done; what remains is
 15. **Packaging.** `codehud` npm package (`packages/cli`): `up`, `crawl`, `mcp`, `install claude`,
     `uninstall claude`, `status`, `link`, `demo`. Bundled with esbuild, HUD included, proven from a tarball.
     `SETUP.md` for agents and humans, `RELEASING.md`, CI workflow. Not yet published.
+16. **Footpaths and terrain.** Map edges are routed like paths, not wires: out of the card, into the gap,
+    along a free channel, round any card in the way (`packages/hud/src/lib/route.ts`, used by the grid and
+    the 3D floor). `b` toggles swimlane terrain: a texture and tone per lane as map columns and as ground
+    tiles under sprites in play view. Focusing a container (a store) now shows the edges of its children.
+    The demo pushes an updated map after the answer (new `stripe_events` table, KV edges, or the
+    timestamp column) so the picture follows the decision.
 
 ## Next
 

@@ -83,6 +83,7 @@
     {/if}
     <button class="ghost" class:on={hud.showActivity} onclick={() => (hud.showActivity = !hud.showActivity)} title="Toggle activity (l)">log</button>
     <button class="ghost" class:on={hud.showTimeline} onclick={() => (hud.showTimeline = !hud.showTimeline)} title="History: decisions, notes, map loads (h)">history</button>
+    <button class="ghost" class:on={hud.terrain} onclick={() => hud.toggleTerrain()} title="Swimlane terrain: a texture per lane under the map and the sprites (b)">terrain</button>
     <button class="ghost" onclick={() => hud.toggleTheme()} title="Toggle theme (t)">{hud.theme === 'dark' ? '☾' : '☀'}</button>
     <button class="ghost" onclick={() => (hud.showHelp = !hud.showHelp)} title="Keyboard help (?)">?</button>
     {#if hud.demo}

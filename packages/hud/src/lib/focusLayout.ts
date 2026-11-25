@@ -24,8 +24,13 @@ export function focusLayout(index: MapIndex, focalIds: string[], opts: { maxSide
   const up = new Map<string, SysEdge[]>();
   const down = new Map<string, SysEdge[]>();
   const internal: SysEdge[] = [];
-  for (const e of index.map.edges) {
-    if (!opts.showImports && HIDDEN.includes(e.kind)) continue;
+  // Edges that touch something inside a focal container count as the container's: focusing a store shows who writes its tables.
+  const focalOf = new Map<string, string>();
+  for (const n of focal) for (const d of index.descendants(n.id)) if (!focalSet.has(d.id) && !focalOf.has(d.id)) focalOf.set(d.id, n.id);
+  for (const e0 of index.map.edges) {
+    if (!opts.showImports && HIDDEN.includes(e0.kind)) continue;
+    const e = focalOf.has(e0.from) || focalOf.has(e0.to) ? { ...e0, from: focalOf.get(e0.from) ?? e0.from, to: focalOf.get(e0.to) ?? e0.to } : e0;
+    if (e.from === e.to) continue;
     const f = focalSet.has(e.from), t = focalSet.has(e.to);
     if (f && t) { internal.push(e); continue; }
     if (t && !f) (up.get(e.from) ?? up.set(e.from, []).get(e.from)!).push(e);

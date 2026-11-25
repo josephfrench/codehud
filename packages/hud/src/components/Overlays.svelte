@@ -53,7 +53,7 @@
           <tr><td>stubs at the edge</td><td>connections that leave this level; hover lists them, click follows them</td></tr>
           <tr><td><kbd>h</kbd></td><td>history: decisions, notes and map loads; <code>✓n</code> on a node shows why it is there</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>close the card or drawer, clear the preview, or go up a level</td></tr>
-          <tr><td><kbd>c</kbd> <kbd>l</kbd> <kbd>i</kbd> <kbd>t</kbd></td><td>collapse dialogue · log · import edges · theme</td></tr>
+          <tr><td><kbd>c</kbd> <kbd>l</kbd> <kbd>i</kbd> <kbd>t</kbd> <kbd>b</kbd></td><td>collapse dialogue · log · import edges · theme · lane terrain</td></tr>
           <tr><td><kbd>Shift+F</kbd> <kbd>/</kbd></td><td>follow or free roam · jump to a node (ranked by what the agent touched last)</td></tr>
         </tbody>
       </table>

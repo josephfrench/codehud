@@ -9,6 +9,7 @@ import { MapIndex, type SystemMap } from '../../../schema/src/index.ts';
 import type { ActivityItem, Question, QuestionInput, QuestionOption, ServerEvent } from '../../../schema/src/protocol.ts';
 import sample from '../../../../examples/sample-webapp.system.json';
 import sampleUrl from '../../../../examples/sample-webapp.system.json?url';
+import { applyDecision } from '../../../../examples/sample-webapp.decisions.ts';
 import { hud } from './state.svelte.ts';
 
 export const DEMO_MAP_URL = sampleUrl;
@@ -21,7 +22,7 @@ const now = () => new Date().toISOString();
 
 export function startDemo() {
   const map = sample as unknown as SystemMap;
-  const index = new MapIndex(map);
+  let index = new MapIndex(map);
   const myRun = ++run;
   const alive = () => run === myRun;
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -116,8 +117,13 @@ export function startDemo() {
     session('working');
     note(`Going with: ${chosen}. Writing the migration + guard.`);
     await sleep(1500); if (!alive()) return;
-    const target = chosen === 'kv' ? ['store:kv', 'function:handle-webhook'] : chosen === 'ts' ? ['table:subscriptions', 'function:sync-subscription'] : ['store:d1', 'function:handle-webhook'];
-    focus(target, undefined, 'implementing');
+    // the decision changes the system: push the updated map, then work on the new nodes
+    const decision = applyDecision(map, answered.answer?.optionId);
+    index = new MapIndex(decision.map);
+    emit({ type: 'map', map: decision.map });
+    log('map', decision.text);
+    await sleep(900); if (!alive()) return;
+    focus(decision.focus, undefined, 'implementing');
     await sleep(2200); if (!alive()) return;
     note('Done. Tests green.');
     session('idle');

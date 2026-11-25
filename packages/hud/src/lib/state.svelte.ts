@@ -58,6 +58,8 @@ class HudState {
   /** shared hover tooltip (stubs, "why is this here?") */
   tip = $state.raw<Tip | null>(null);
   theme = $state<'dark' | 'light'>((() => { try { return (localStorage.getItem('codehud-theme') as 'dark' | 'light') || 'dark'; } catch { return 'dark'; } })());
+  /** swimlane terrain: a texture and tone per lane under the map and the sprites */
+  terrain = $state<boolean>((() => { try { return localStorage.getItem('codehud-terrain') === '1'; } catch { return false; } })());
   toasts = $state<Toast[]>([]);
   /** bump to ask the canvas to fit these ids (null = whole level) */
   fit = $state.raw<{ ids: string[] | null; lane?: string; seq: number }>({ ids: null, seq: 0 });
@@ -404,6 +406,10 @@ class HudState {
     this.theme = this.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = this.theme;
     try { localStorage.setItem('codehud-theme', this.theme); } catch { /* ignore */ }
+  }
+  toggleTerrain() {
+    this.terrain = !this.terrain;
+    try { localStorage.setItem('codehud-terrain', this.terrain ? '1' : '0'); } catch { /* ignore */ }
   }
 
   // ----- questions ---------------------------------------------------------

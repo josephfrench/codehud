@@ -11,6 +11,9 @@
   import { hud } from '../lib/state.svelte.ts';
   import { focusLayout } from '../lib/focusLayout.ts';
   import { computeLayout, EDGE_STYLE, KIND_GLYPH } from '../lib/layout.ts';
+  import { roundedPath, labelPoint } from '../lib/route.ts';
+  import { laneTexture, laneTone, type Texture } from '../lib/terrain.ts';
+  import Terrain from './Terrain.svelte';
   import { outsideStubs, type Stub } from '../lib/stubs.ts';
   import { anchorFor } from '../lib/anchor.ts';
   import Sprite from './Sprite.svelte';
@@ -23,7 +26,7 @@
   interface Placed { id: string; node: SysNode | null; role: Role; x: number; y: number; s: number; children: SysNode[]; moreCount?: number; via?: string }
   interface Line { key: string; from: string; to: string; label: string; flow: boolean; faint?: boolean; preview?: boolean; d: string; mx: number; my: number }
   interface Band { label: string; color: string; y0: number; y1: number }
-  interface Col { label: string; x: number }
+  interface Col { label: string; x: number; x0: number; x1: number; tex: Texture | null; tone: string }
   interface PlacedStub { stub: Stub; x: number; y: number }
   const HIDDEN: EdgeKind[] = ['imports', 'depends'];
   const EMPTY = { placed: [] as Placed[], lines: [] as Line[], bands: [] as Band[], cols: [] as Col[], stubs: [] as PlacedStub[], zone: null as SysNode | null, width: 1200 };
@@ -87,7 +90,7 @@
       const group = far.filter((f) => pos.get(f.via!)?.role === role);
       const rowItems = placed.filter((p) => p.role === role || (p.role === 'more' && (role === 'up' ? p.y < 0 : p.y > 0)));
       const extent = rowItems.length ? Math.max(...rowItems.map((p) => Math.abs(p.x))) + 300 : 300;
-      const y = role === 'up' ? ROW.up.y - 40 : ROW.down.y + 20;
+      const y = role === 'up' ? ROW.up.y - 40 : ROW.down.y - 30; // the down ring sits level with the down row so the dialogue does not hide it
       group.forEach((f, i) => { f.x = (i % 2 === 0 ? -1 : 1) * (extent + Math.floor(i / 2) * 230); f.y = y; placed.push(f); });
     }
     pos = byId();
@@ -131,10 +134,13 @@
       const a = pos.get(e.from), b = pos.get(e.to);
       if (!a || !b) continue;
       const label = e.count > 1 ? `${EDGE_STYLE[e.kind]?.label ?? e.kind} ×${e.count}` : e.labels[0] ?? (EDGE_STYLE[e.kind]?.label ?? e.kind);
-      lines.push({ key: e.key, from: e.from, to: e.to, label, flow: FLOW.includes(e.kind), ...curve(a, b) });
+      // the grid's footpath, scaled onto the floor
+      const d = roundedPath(e.points, 10 * K, (q) => ({ x: (q.x - ox) * K + PLANE_W / 2, y: (q.y - oy) * K + PLANE_H / 2 }));
+      const m = labelPoint(e.points);
+      lines.push({ key: e.key, from: e.from, to: e.to, label, flow: FLOW.includes(e.kind), d, mx: (m.x - ox) * K, my: (m.y - oy) * K });
     }
     const bands: Band[] = layout.bands.map((b) => ({ label: b.layer.label, color: hud.layerColor(b.layer.id), y0: (b.y - oy) * K, y1: (b.y + b.h - oy) * K }));
-    const cols: Col[] = layout.columns.map((c) => ({ label: c.lane?.label ?? 'Shared', x: (c.x + c.w / 2 - ox) * K }));
+    const cols: Col[] = layout.columns.map((c) => ({ label: c.lane?.label ?? 'Shared', x: (c.x + c.w / 2 - ox) * K, x0: (c.x - ox) * K, x1: (c.x + c.w - ox) * K, tex: laneTexture(idx.map, c.lane?.id), tone: laneTone(idx.map, c.lane?.id) }));
     // edges that leave this level: stubs just outside the bands, beams to the cards they touch
     const stubs: PlacedStub[] = outsideStubs(idx, hud.current?.id ?? null, layout, { showImports: hud.showImports }).map((s) => {
       const p = toPlane(s.x, s.y);
@@ -283,6 +289,10 @@
     return n.summary ?? '';
   };
   const billboard = $derived(`rotateZ(${-cam.yaw}deg) rotateX(${-cam.tilt}deg)`);
+  /** play view: the lane texture under a sprite, so the ground says which lane it stands in */
+  const tileOf = (p: Placed) => (hud.terrain && mode === 'play' && p.node && hud.index ? laneTexture(hud.map, hud.index.laneOf(p.node)) : null);
+  const toneOf = (p: Placed) => (p.node && hud.index ? laneTone(hud.map, hud.index.laneOf(p.node)) : 'var(--fg-3)');
+  const terrainY = $derived(scene.bands.length ? { y0: scene.bands[0].y0, y1: scene.bands[scene.bands.length - 1].y1 } : null);
   let vw = $state(window.innerWidth), vh = $state(window.innerHeight);
   const anchor = $derived(anchorFor(hud.blowoutFrom, vw, vh));
 </script>
@@ -294,6 +304,7 @@
   <div class="camera" style="transform: translate({cam.x}px, {cam.y}px) scale({cam.z})">
     <div class="plane" style="width: {PLANE_W}px; height: {PLANE_H}px; margin-left: {-PLANE_W / 2}px; margin-top: {-PLANE_H / 2}px; transform: rotateX({cam.tilt}deg) rotateZ({cam.yaw}deg)">
       <div class="grid"></div>
+      <svg class="defs" width="0" height="0" aria-hidden="true"><Terrain scale={1.6} /></svg>
       {#if !hud.map}
         <div class="empty" style="transform: translate(-50%, -50%) {billboard}">No system map loaded.</div>
       {:else if !placed.length}
@@ -304,8 +315,18 @@
             <span class="bandlabel" style="left: {PLANE_W / 2 + leftEdge - 120}px; transform: translate(-100%, -50%) {billboard}">{b.label.toUpperCase()}</span>
           </div>
         {/each}
+        {#if hud.terrain && terrainY}
+          <svg class="terrain" viewBox="0 0 {PLANE_W} {PLANE_H}" width={PLANE_W} height={PLANE_H}>
+            {#each scene.cols as c (c.label + ':t')}
+              {#if c.tex}
+                <rect x={PLANE_W / 2 + c.x0} y={PLANE_H / 2 + terrainY.y0} width={c.x1 - c.x0} height={terrainY.y1 - terrainY.y0} fill={c.tone} opacity=".12" />
+                <rect x={PLANE_W / 2 + c.x0} y={PLANE_H / 2 + terrainY.y0} width={c.x1 - c.x0} height={terrainY.y1 - terrainY.y0} fill="url(#tex-{c.tex})" style="color: {c.tone}" opacity=".32" />
+              {/if}
+            {/each}
+          </svg>
+        {/if}
         {#each scene.cols as c (c.label)}
-          <div class="collabel" style="left: {PLANE_W / 2 + c.x}px; top: {PLANE_H / 2 + (scene.bands[0]?.y0 ?? 0) - 70}px; transform: translate(-50%, -100%) {billboard}">{c.label}</div>
+          <div class="collabel" style="left: {PLANE_W / 2 + c.x}px; top: {PLANE_H / 2 + (scene.bands[0]?.y0 ?? 0) - 70}px; transform: translate(-50%, -100%) {billboard}; {hud.terrain && c.tex ? `color: ${c.tone}` : ''}">{c.label}</div>
         {/each}
 
         <svg class="links" viewBox="0 0 {PLANE_W} {PLANE_H}" width={PLANE_W} height={PLANE_H}>
@@ -333,6 +354,14 @@
 
         {#key levelKey}
         {#each placed as p (p.id)}
+          {@const tile = tileOf(p)}
+          {#if tile}
+            <svg class="tile" viewBox="0 0 240 110" style="left: {PLANE_W / 2 + p.x}px; top: {PLANE_H / 2 + p.y}px; --s: {p.s}; color: {toneOf(p)}">
+              <ellipse cx="120" cy="55" rx="116" ry="50" fill="currentColor" opacity=".14" />
+              <ellipse cx="120" cy="55" rx="116" ry="50" fill="url(#tex-{tile})" opacity=".4" />
+              <ellipse cx="120" cy="55" rx="116" ry="50" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="2" />
+            </svg>
+          {/if}
           <div class="shadow" style="left: {PLANE_W / 2 + p.x}px; top: {PLANE_H / 2 + p.y}px; --s: {p.s}"></div>
           <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
           <div
@@ -394,6 +423,9 @@
   .band { position: absolute; left: 0; right: 0; background: color-mix(in srgb, var(--c) 7%, transparent); border-top: 1px solid color-mix(in srgb, var(--c) 30%, transparent); pointer-events: none; }
   .bandlabel { position: absolute; top: 50%; transform-origin: 100% 50%; font: 700 26px var(--mono); letter-spacing: .16em; color: var(--c); white-space: nowrap; opacity: .9; }
   .collabel { position: absolute; transform-origin: 50% 100%; font: 600 24px var(--sans); color: var(--fg-2); white-space: nowrap; letter-spacing: .04em; }
+  .defs { position: absolute; left: 0; top: 0; }
+  .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
+  .tile { position: absolute; width: calc(240px * var(--s)); height: calc(110px * var(--s)); transform: translate(-50%, -50%); pointer-events: none; overflow: visible; }
   .links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
   .beam { fill: none; stroke: var(--agent); stroke-width: 14; opacity: .07; }
   .dots { fill: none; stroke: var(--fg-3); stroke-width: 2.5; stroke-dasharray: 5 11; opacity: .8; }

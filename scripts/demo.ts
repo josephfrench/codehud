@@ -11,6 +11,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { ServerInfo, Question } from '../packages/schema/src/protocol.ts';
+import type { SystemMap } from '../packages/schema/src/index.ts';
+import { applyDecision } from '../examples/sample-webapp.decisions.ts';
 
 const info: ServerInfo = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.codehud', 'server.json'), 'utf8'));
 const base = `http://${info.host}:${info.port}`;
@@ -84,8 +86,12 @@ if (cur.status === 'answered') {
   const chosen = cur.answer?.optionId ?? 'free text';
   await api('POST', '/api/notes', { text: `Going with: ${chosen}. Writing the migration + guard.`, session });
   await sleep(1500);
-  const target = chosen === 'kv' ? ['store:kv', 'function:handle-webhook'] : chosen === 'ts' ? ['table:subscriptions', 'function:sync-subscription'] : ['store:d1', 'function:handle-webhook'];
-  await api('POST', '/api/focus', { nodes: target, note: 'implementing', session });
+  // the decision changes the system: push the updated map, then work on the new nodes
+  const decision = applyDecision(await api<SystemMap>('GET', '/api/map'), cur.answer?.optionId);
+  await api('PUT', '/api/map', decision.map);
+  await api('POST', '/api/notes', { text: decision.text, session });
+  await sleep(900);
+  await api('POST', '/api/focus', { nodes: decision.focus, note: 'implementing', session });
   await sleep(2000);
   await api('POST', '/api/notes', { text: 'Done. Tests green.', session });
 }

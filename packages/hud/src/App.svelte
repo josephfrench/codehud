@@ -49,6 +49,7 @@
       case 'l': hud.showActivity = !hud.showActivity; break;
       case 'h': hud.showTimeline = !hud.showTimeline; break;
       case 't': hud.toggleTheme(); break;
+      case 'b': hud.toggleTerrain(); break;
       case '?': hud.showHelp = !hud.showHelp; break;
       case '/': topbar.focusSearch(); break;
       case 'F': hud.toggleMode(); break;

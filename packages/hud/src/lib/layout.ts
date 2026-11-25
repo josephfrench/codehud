@@ -3,6 +3,7 @@
  * Same input => same output, always. Nodes keep their declared order.
  */
 import type { MapIndex, SysNode, SysEdge, Layer, Lane, EdgeKind } from '../../../schema/src/index.ts';
+import { routeBoxes, roundedPath, labelPoint, spreadChannels, type Pt } from './route.ts';
 
 export const CARD_W = 200;
 export const CARD_H = 72;
@@ -27,6 +28,8 @@ export interface VisEdge {
   ids: string[];
   /** true when at least one original edge connects exactly these two visible nodes (not lifted) */
   direct: boolean;
+  /** the footpath: card edge -> channels and corridors -> card edge (layout coordinates) */
+  points: Pt[];
   d: string;
   mid: { x: number; y: number };
 }
@@ -144,7 +147,7 @@ export function computeLayout(index: MapIndex, visible: SysNode[], opts: { showI
       cur.direct ||= direct;
       if (e.label && !cur.labels.includes(e.label)) cur.labels.push(e.label);
     } else {
-      agg.set(key, { key, from: a, to: b, kind: e.kind, count: 1, labels: e.label ? [e.label] : [], ids: [e.id], direct, d: '', mid: { x: 0, y: 0 } });
+      agg.set(key, { key, from: a, to: b, kind: e.kind, count: 1, labels: e.label ? [e.label] : [], ids: [e.id], direct, points: [], d: '', mid: { x: 0, y: 0 } });
     }
   }
   // Group parallel edges between the same pair so we can fan them out
@@ -155,47 +158,27 @@ export function computeLayout(index: MapIndex, visible: SysNode[], opts: { showI
     arr.push(ve);
     pairs.set(pk, arr);
   }
+  const bandIndex = new Map(bands.map((b, i) => [b.layer.id, i]));
+  const xRange: [number, number] = [BAND_LABEL_W + 6, width - 6];
   for (const group of pairs.values()) {
     group.forEach((ve, i) => {
       const off = (i - (group.length - 1) / 2) * 14;
-      const { d, mid } = routeEdge(cardById.get(ve.from)!, cardById.get(ve.to)!, off);
-      ve.d = d;
-      ve.mid = mid;
+      const a = cardById.get(ve.from)!, b = cardById.get(ve.to)!;
+      ve.points = routeBoxes(a, b, off, cards, levelsBetween(bands, bandIndex.get(a.layer)!, bandIndex.get(b.layer)!), xRange);
     });
   }
+  const all = [...agg.values()];
+  spreadChannels(all.map((ve) => ve.points));
+  for (const ve of all) { ve.d = roundedPath(ve.points, 10); ve.mid = labelPoint(ve.points); }
   return { width, height, bands, columns, cards, cardById, edges: [...agg.values()] };
 }
 
-function routeEdge(a: Card, b: Card, off: number): { d: string; mid: { x: number; y: number } } {
-  const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
-  const bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
-  const dy = bc.y - ac.y;
-  const dx = bc.x - ac.x;
-  let p1, p2, c1, c2;
-  if (Math.abs(dy) > a.h) {
-    // vertical-ish: leave bottom/top edges
-    const down = dy > 0;
-    p1 = { x: ac.x + off, y: down ? a.y + a.h : a.y };
-    p2 = { x: bc.x + off, y: down ? b.y : b.y + b.h };
-    const k = Math.max(30, Math.abs(p2.y - p1.y) * 0.45);
-    c1 = { x: p1.x, y: p1.y + (down ? k : -k) };
-    c2 = { x: p2.x, y: p2.y - (down ? k : -k) };
-  } else {
-    // horizontal: leave left/right edges
-    const right = dx > 0;
-    p1 = { x: right ? a.x + a.w : a.x, y: ac.y + off };
-    p2 = { x: right ? b.x : b.x + b.w, y: bc.y + off };
-    const k = Math.max(30, Math.abs(p2.x - p1.x) * 0.4);
-    c1 = { x: p1.x + (right ? k : -k), y: p1.y };
-    c2 = { x: p2.x - (right ? k : -k), y: p2.y };
-  }
-  const d = `M${p1.x.toFixed(1)},${p1.y.toFixed(1)} C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  // bezier midpoint at t=0.5
-  const mid = {
-    x: 0.125 * p1.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * p2.x,
-    y: 0.125 * p1.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * p2.y,
-  };
-  return { d, mid };
+/** The free horizontal channels (band boundaries) a path crosses going from band i to band j, in travel order. */
+function levelsBetween(bands: Band[], i: number, j: number): number[] {
+  const out: number[] = [];
+  if (j > i) for (let k = i; k < j; k++) out.push(bands[k].y + bands[k].h);
+  else if (j < i) for (let k = i; k > j; k--) out.push(bands[k].y);
+  return out;
 }
 
 export function bbox(cards: Card[]) {

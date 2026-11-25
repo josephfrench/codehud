@@ -133,7 +133,7 @@ Three views, switched from the top bar or with `m` (map) and `d` (docs):
 | `1`…`9`, then `↵` | preview an answer's path, then confirm |
 | `←` `→` `↑` `↓` | map: siblings or lanes, up a level, open the selected node |
 | `Esc` | close the card, clear the preview, or go up a level |
-| `c` `l` `h` `i` `t` `?` `/` | collapse the dialogue, log, history, import edges, theme, help, search |
+| `c` `l` `h` `i` `t` `b` `?` `/` | collapse the dialogue, log, history, import edges, theme, lane terrain, help, search |
 | `Shift+F` | follow the agent / free roam |
 
 Amber means something needs you. Blue is where the agent is. Layout is deterministic: the same map at
@@ -148,7 +148,11 @@ the same level always looks the same.
 - Several agents at once: each session has its own colour; click a session in the top bar to follow only
   that one. Pending counts group by session.
 - Maps may declare any layer set in any order; `examples/service-mesh.system.json` shows a non-web one.
-  Layers without a known colour get a palette slot or their own `color`. `/demo` is the in-browser tour; `/assets` shows every resource sprite in
+  Layers without a known colour get a palette slot or their own `color`.
+- Edges are footpaths: a path leaves a card, drops into the gap, walks a free channel and goes round
+  any card in its way instead of cutting through it (grid and 3D map alike).
+- `b` lays swimlane terrain over the map: each lane gets a texture and tone, as columns in the map and
+  as ground tiles under the sprites in play view, so you can tell which lane a thing stands in. `/demo` is the in-browser tour; `/assets` shows every resource sprite in
 its four states.
 
 ## Security posture

@@ -3,7 +3,9 @@
   import { hud } from '../lib/state.svelte.ts';
   import { computeLayout, bbox, KIND_GLYPH, EDGE_STYLE, LANE_HEAD_H, type Layout, type VisEdge, type Card } from '../lib/layout.ts';
   import { outsideStubs, type Stub } from '../lib/stubs.ts';
+  import { laneTexture, laneTone } from '../lib/terrain.ts';
   import Minimap from './Minimap.svelte';
+  import Terrain from './Terrain.svelte';
 
   let container: HTMLDivElement;
   let svgEl: SVGSVGElement;
@@ -229,6 +231,8 @@
         <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
       </filter>
     </defs>
+    <!-- pattern scale follows the zoom so the ground keeps the same grain on screen -->
+    <Terrain scale={Math.max(0.25, vb.w / Math.max(size.w, 1))} />
 
     {#if shown}
       {@const layout = shown}
@@ -243,10 +247,15 @@
         {/if}
       {/each}
 
-      <!-- lane columns -->
+      <!-- lane columns; with terrain on, each lane is a strip of textured ground over the layer bands -->
       {#each layout.columns as c, i (c.id)}
+        {@const tex = hud.terrain ? laneTexture(hud.map, c.lane?.id) : null}
+        {#if tex}
+          <rect x={c.x} y={LANE_HEAD_H} width={c.w} height={layout.height - LANE_HEAD_H} fill={laneTone(hud.map, c.lane?.id)} opacity="0.05" />
+          <rect class="terrain" x={c.x} y={LANE_HEAD_H} width={c.w} height={layout.height - LANE_HEAD_H} fill="url(#tex-{tex})" style="color: {laneTone(hud.map, c.lane?.id)}" />
+        {/if}
         {#if i > 0}<line x1={c.x} y1={LANE_HEAD_H - 10} x2={c.x} y2={layout.height} stroke="var(--line)" stroke-dasharray="2 6" />{/if}
-        <text x={c.x + c.w / 2} y={LANE_HEAD_H - 14} text-anchor="middle" class="lane-label" class:shared={!c.lane}>
+        <text x={c.x + c.w / 2} y={LANE_HEAD_H - 14} text-anchor="middle" class="lane-label" class:shared={!c.lane} style={tex ? `fill: ${laneTone(hud.map, c.lane?.id)}` : ''}>
           {c.lane?.label ?? 'Shared'}
         </text>
       {/each}
@@ -366,6 +375,7 @@
   .band-desc { font: 10px var(--sans); fill: var(--fg-3); }
   .lane-label { font: 600 12px var(--sans); fill: var(--fg-2); letter-spacing: .04em; }
   .lane-label.shared { fill: var(--fg-3); font-style: italic; }
+  .terrain { opacity: .16; pointer-events: none; }
 
   .edge { fill: none; stroke: var(--fg-3); stroke-width: 1.4; opacity: .7; transition: opacity .2s, stroke .2s; }
   .edge.lifted { stroke-width: 2.2; }
