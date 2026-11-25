@@ -36,7 +36,8 @@ jobs:
           mkdir -p "$tmp"
           npm install -g --prefix "$tmp" ./out/codehud-*.tgz
           # npm -g --prefix puts packages under node_modules on Windows and lib/node_modules elsewhere
-          cli=$(ls "$tmp"/node_modules/codehud/dist/cli.js "$tmp"/lib/node_modules/codehud/dist/cli.js 2>/dev/null | head -1)
+          cli="$tmp/lib/node_modules/codehud/dist/cli.js"
+          [ -f "$cli" ] || cli="$tmp/node_modules/codehud/dist/cli.js"
           node "$cli" --help
           node "$cli" crawl . --out "$tmp/self.system.json" --quiet
           node -e "const m=require(process.argv[1]); if (!m.nodes.length) throw new Error('empty map')" "$tmp/self.system.json"
