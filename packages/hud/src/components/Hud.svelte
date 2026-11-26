@@ -54,12 +54,16 @@
   });
 
   // ----- fit / animation ----------------------------------------------------
-  let lastSeq = -1;
+  // opening the map shows the whole level first (the lit trace tells you where the agent is); later fits follow hud.fit
+  let lastSeq = hud.fit.seq;
+  let firstFit = true;
   let anim: number | null = null;
   $effect(() => {
     const f = hud.fit;
     const l = layout;
-    if (!l || f.seq === lastSeq) return;
+    if (!l) return;
+    if (firstFit) { firstFit = false; fitTo({ x: 0, y: 0, w: l.width, h: l.height }, hud.current ? 90 : 24, 600); return; }
+    if (f.seq === lastSeq) return;
     lastSeq = f.seq;
     if (f.lane) {
       const col = l.columns.find((c) => c.id === f.lane);
@@ -72,12 +76,16 @@
   });
 
   function fitTo(box: { x: number; y: number; w: number; h: number }, pad: number, minW: number) {
-    const aspect = size.w / size.h;
+    // the question drawer docks over the bottom of the stage: fit into what is left above it
+    const dock = hud.activeQuestion ? (hud.questionOpen ? 260 : 80) : 0;
+    const vh = Math.max(size.h - dock, 200);
+    const aspect = size.w / vh;
     let w = Math.max(box.w + pad * 2, minW);
     let h = Math.max(box.h + pad * 2, minW / aspect);
     if (w / h < aspect) w = h * aspect; else h = w / aspect;
-    animateTo({ x: box.x + box.w / 2 - w / 2, y: box.y + box.h / 2 - h / 2, w, h });
+    animateTo({ x: box.x + box.w / 2 - w / 2, y: box.y + box.h / 2 - h / 2, w, h: h * (size.h / vh) });
   }
+  $effect(() => { hud.zoom = size.w / vb.w; });
   function animateTo(target: typeof vb) {
     if (anim) cancelAnimationFrame(anim);
     if (reducedMotion()) { vb = target; return; }
@@ -237,20 +245,17 @@
         <line x1={-2000} y1={b.y} x2={layout.width + 4000} y2={b.y} stroke="var(--line)" />
         <rect x={0} y={b.y + 10} width={3} height={b.h - 20} rx="1.5" fill={layerColor(b.layer.id)} opacity="0.8" />
         <text x={14} y={b.y + 24} class="band-label" fill={layerColor(b.layer.id)}>{b.layer.label.toUpperCase()}</text>
-        {#if b.layer.description}
+        {#if hud.terrain}
+          <text x={14} y={b.y + 40} class="band-ground" fill={layerColor(b.layer.id)}>{layerGround(hud.map, b.layer.id)}</text>
+        {:else if b.layer.description}
           <text x={14} y={b.y + 40} class="band-desc">{trunc(b.layer.description, 18)}</text>
         {/if}
       {/each}
 
-      <!-- lane columns: districts, fenced when the ground is on -->
+      <!-- lane columns -->
       {#each layout.columns as c, i (c.id)}
         {#if i > 0}
-          {#if hud.terrain}
-            <line class="fence" x1={c.x - 2} y1={LANE_HEAD_H} x2={c.x - 2} y2={layout.height} />
-            <line class="fence" x1={c.x + 2} y1={LANE_HEAD_H} x2={c.x + 2} y2={layout.height} />
-          {:else}
-            <line x1={c.x} y1={LANE_HEAD_H - 10} x2={c.x} y2={layout.height} stroke="var(--line)" stroke-dasharray="2 6" />
-          {/if}
+          <line x1={c.x} y1={LANE_HEAD_H - 10} x2={c.x} y2={layout.height} stroke="var(--line)" stroke-dasharray="2 6" />
         {/if}
         <text x={c.x + c.w / 2} y={LANE_HEAD_H - 14} text-anchor="middle" class="lane-label" class:shared={!c.lane}>
           {c.lane?.label ?? 'Shared'}
@@ -359,8 +364,8 @@
   .band-desc { font: 10px var(--sans); fill: var(--fg-3); }
   .lane-label { font: 600 12px var(--sans); fill: var(--fg-2); letter-spacing: .04em; }
   .lane-label.shared { fill: var(--fg-3); font-style: italic; }
-  .ground { opacity: .16; pointer-events: none; }
-  .fence { stroke: var(--line-2); stroke-width: 1; }
+  .ground { opacity: .3; pointer-events: none; }
+  .band-ground { font: 10px var(--mono); opacity: .7; }
 
   .edge { fill: none; stroke: var(--fg-3); stroke-width: 1.4; opacity: .5; transition: opacity .2s, stroke .2s; }
   .edge.lifted { stroke-width: 2.2; }

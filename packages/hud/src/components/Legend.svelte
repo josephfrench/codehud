@@ -17,7 +17,7 @@
         <span class="ground">{r.ground}</span>
       </div>
     {/each}
-    <p>Lanes are districts, fenced. Paths follow the rows and cross at the gutters.</p>
+    <p>Each row of the map is a layer; its ground says what kind. Columns are lanes. Paths run along the rows and cross at the gutters between lanes.</p>
   </aside>
 {/if}
 

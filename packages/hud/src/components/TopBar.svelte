@@ -78,12 +78,18 @@
         <button class="pending" onclick={() => hud.follow()}>{hud.pending.length} waiting</button>
       {/if}
     {/if}
-    <button class="mode" class:follow={hud.mode === 'follow'} onclick={() => hud.toggleMode()} title="Toggle follow / free roam (Shift+F)">
-      {hud.mode === 'follow' ? (hud.followSession ? `● following ${sessionLabel(hud.followSession)}` : '● following agent') : '○ free roam'}
-    </button>
+    {#if hud.mode === 'follow'}
+      <button class="mode follow" onclick={() => hud.roam()} title="The view goes where the agent goes. Pan, zoom or click anything to look around on your own (Shift+F).">
+        ● following {hud.followSession ? sessionLabel(hud.followSession) : 'agent'}
+      </button>
+    {:else}
+      <button class="mode back" onclick={() => { if (hud.view === 'docs') hud.view = 'play'; hud.follow(); }} title="You are looking around on your own. Click to go back to where the agent is{hud.pendingFollowed.length ? ', and the question it is asking' : ''} (Shift+F).">
+        ↩ back to {hud.pendingFollowed.length ? 'question' : 'agent'}
+      </button>
+    {/if}
     <span class="views">
-      <button class="ghost" class:on={hud.view === 'play'} onclick={() => (hud.view = 'play')} title="Follow the agent">play</button>
-      <button class="ghost" class:on={hud.view === 'map'} onclick={() => (hud.view = 'map')} title="Whole map (m)">map</button>
+      <button class="ghost" class:on={hud.view === 'play'} onclick={() => (hud.view = 'play')} title="Focus: what the agent is working on, with what calls it above and what it uses below (m toggles focus / map)">focus</button>
+      <button class="ghost" class:on={hud.view === 'map'} onclick={() => (hud.view = 'map')} title="Map: the whole system as layer rows x lane columns; open a container to see inside (m)">map</button>
       <button class="ghost" class:on={hud.view === 'docs'} onclick={() => (hud.view = 'docs')} title="Files and docs (d)">docs</button>
     </span>
     {#if hud.view === 'map'}
@@ -94,7 +100,7 @@
     {/if}
     <button class="ghost" class:on={hud.showActivity} onclick={() => (hud.showActivity = !hud.showActivity)} title="Toggle activity (l)">log</button>
     <button class="ghost" class:on={hud.showTimeline} onclick={() => (hud.showTimeline = !hud.showTimeline)} title="History: decisions, notes, map loads (h)">history</button>
-    <button class="ghost" class:on={hud.terrain} onclick={() => hud.toggleTerrain()} title="Swimlane terrain: a texture per lane under the map and the sprites (b)">terrain</button>
+    <button class="ghost" class:on={hud.terrain} onclick={() => hud.toggleTerrain()} title="Ground: a texture per layer row under the map, key bottom-left (b)">ground</button>
     {#if !hud.demo}
       <button class="ghost reset" class:armed={resetArmed} onclick={resetClick} onblur={() => (resetArmed = false)} title="Start over: clear sessions, questions and history on the server and reload its map (click twice)">{resetArmed ? 'sure?' : 'reset'}</button>
     {/if}
@@ -141,6 +147,7 @@
   .pending { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: #140c00; border-color: transparent; font-weight: 600; animation: pulse 1.6s infinite; }
   .mode { font-size: 12px; }
   .mode.follow { color: var(--agent); border-color: color-mix(in srgb, var(--agent) 50%, var(--line-2)); }
+  .mode.back { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, var(--line-2)); font-weight: 600; }
   .ghost.on { color: var(--fg); background: var(--bg-3); }
   .ghost.reset.armed { color: var(--bg); background: var(--accent); }
   .views { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; }

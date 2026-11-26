@@ -50,6 +50,7 @@
       case 'h': hud.showTimeline = !hud.showTimeline; break;
       case 't': hud.toggleTheme(); break;
       case 'b': hud.toggleTerrain(); break;
+      case '0': hud.requestFit(null); break;
       case '?': hud.showHelp = !hud.showHelp; break;
       case '/': topbar.focusSearch(); break;
       case 'F': hud.toggleMode(); break;
@@ -85,7 +86,7 @@
         <Breadcrumbs />
       {:else}
         <Scene bind:this={scene} mode={hud.view === 'map' ? 'map' : 'play'} />
-        {#if hud.view === 'map'}<Breadcrumbs />{/if}
+        <Breadcrumbs />
         {#if hud.view === 'play'}<div class="mini"><Minimap /></div>{/if}
       {/if}
       {#if hud.view !== 'docs' && hud.map}

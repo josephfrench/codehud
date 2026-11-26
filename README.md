@@ -117,18 +117,19 @@ question if the agent cancels the call.
 
 Three views, switched from the top bar or with `m` (map) and `d` (docs):
 
-- **Play** (default) is a third-person scene of the part of the system the agent is in: the focal
+- **Focus** (default) is a third-person scene of the part of the system the agent is in: the focal
   resources stand centre stage on a 3D floor as animated sprites, callers behind, callees in front, a
   fainter second ring further out, and connection beams on the floor. The agent is a character at the
   bottom with a dialogue box. When it asks something, each option previews the path it would take on the
   stage; confirm to send.
 - **Map** is the whole system at the current level, as the original layer × lane grid or, with `g`, the
-  same layout on the 3D floor. Right-click or triple-click opens a node's children; breadcrumbs go back up.
+  same layout on the 3D floor. Right-click or triple-click opens a node's children; the location bar
+  (top-left, in both views) shows the view, the path into the system and the zoom, with **fit**.
 - **Docs** is the project's files under the map root with markdown preview and code view.
 
 | Input | Action |
 | --- | --- |
-| click · double-click · triple/right-click | centre the camera · specifics card · focus (play) or open (map) |
+| click · double-click · triple/right-click | centre the camera · specifics card · focus it (focus view) or open it (map) |
 | drag · right-drag · wheel | pan · orbit · zoom |
 | `W` `A` `S` `D` · `Q` `E` · `R` `F` · `0` | steer · orbit · tilt · reset the camera |
 | `Tab` / `↵` / `X` | target the next resource / its specifics / focus it |
@@ -136,7 +137,7 @@ Three views, switched from the top bar or with `m` (map) and `d` (docs):
 | `←` `→` `↑` `↓` | map: siblings or lanes, up a level, open the selected node |
 | `Esc` | close the card, clear the preview, or go up a level |
 | `c` `l` `h` `i` `t` `b` `?` `/` | collapse the dialogue, log, history, import edges, theme, ground, help, search |
-| `Shift+F` | follow the agent / free roam |
+| `Shift+F` | back to the agent (or stop following) |
 
 Amber means something needs you. Blue is where the agent is. Layout is deterministic: the same map at
 the same level always looks the same.
@@ -155,9 +156,11 @@ the same level always looks the same.
 - Edges are routes, and they light up for a reason: the agent's trace, a question, or the card under the
   pointer. Lit routes are bright, directional and labelled; everything else stays faint. A route leaves a
   card, follows the gutter between rows, crosses a row along a lane gutter, and goes round cards in its way.
-- `b` turns on the ground: every layer (row) is a kind of terrain, with one key everywhere (grid bands, 3D
-  floor, the tile under a sprite in play view) and a legend bottom-left. Lanes are districts, fenced. `/demo` is the in-browser tour; `/assets` shows every resource sprite in
-its four states.
+- While **following**, the view goes where the agent goes. Any pan, zoom or click of yours stops that,
+  says so once, and the top-bar button becomes **↩ back to agent** (or **back to question**).
+- `b` turns on the ground: every layer (row) is a kind of terrain, named under the row label, with the same
+  key on the grid and the 3D floor and a legend bottom-left. In focus view each plate names its layer.
+- `/demo` is the in-browser tour; `/assets` shows every resource sprite in its four states.
 
 ## Security posture
 

@@ -178,15 +178,19 @@
   }
   let suppressClick = false;
   let lastKey = '';
+  function resetCam() {
+    const z = mode === 'map' ? Math.min(1, (size.w * 0.9) / Math.max(scene.width, 1)) : 1;
+    cam = { ...cam, x: 0, y: mode === 'map' ? 40 : 70, z };
+  }
   $effect(() => {
     const k = mode + ':' + (mode === 'map' ? hud.visible.map((n) => n.id).join('|') : focalIds.join('|'));
-    const w = scene.width, s = size;
-    if (k !== lastKey) {
-      lastKey = k;
-      const z = mode === 'map' ? Math.min(1, (s.w * 0.9) / Math.max(w, 1)) : 1;
-      untrack(() => (cam = { ...cam, x: 0, y: mode === 'map' ? 40 : 70, z }));
-    }
+    void scene.width; void size;
+    if (k !== lastKey) { lastKey = k; untrack(resetCam); }
   });
+  // the location bar's "fit" (and the 0 key) reset the camera
+  let fitSeq = hud.fit.seq;
+  $effect(() => { const s = hud.fit.seq; if (s !== fitSeq) { fitSeq = s; untrack(resetCam); } });
+  $effect(() => { hud.zoom = cam.z; });
   $effect(() => {
     const ro = new ResizeObserver(() => { const r = stage.getBoundingClientRect(); if (r.width && r.height) size = { w: r.width, h: r.height }; });
     ro.observe(stage);
@@ -233,7 +237,7 @@
       case 'e': cam = { ...cam, yaw: cam.yaw + 8 }; return true;
       case 'r': cam = { ...cam, tilt: Math.max(15, cam.tilt - 5) }; return true;
       case 'f': cam = { ...cam, tilt: Math.min(80, cam.tilt + 5) }; return true;
-      case '0': lastKey = ''; return true;
+      case '0': resetCam(); return true;
       case 'Tab': {
         const ids = placed.filter((p) => p.node).map((p) => p.id);
         if (!ids.length) return true;
@@ -267,8 +271,8 @@
     return n.summary ?? '';
   };
   const billboard = $derived(`rotateZ(${-cam.yaw}deg) rotateX(${-cam.tilt}deg)`);
-  /** play view: the ground under a sprite is its layer's, same key as the map */
-  const tileOf = (p: Placed) => (hud.terrain && mode === 'play' && p.node && hud.index ? layerGround(hud.map, hud.index.layerOf(p.node)) : null);
+  /** focus view: name the layer on the plate, so the colour means something without the map's rows */
+  const layerName = (n: SysNode) => { const id = hud.index?.layerOf(n) || n.layer; return hud.map?.layers.find((l) => l.id === id)?.label ?? id; };
   /** map mode: routes light up for the agent / a question (highlighted) or the sprite under the pointer */
   const nodeLit = (id: string) => hud.highlighted.has(id) || (hud.index?.ancestors(id).some((a) => hud.highlighted.has(a.id)) ?? false);
   const traceLit = (l: Line) => (l.touches ?? [l.from, l.to]).some(nodeLit) || (hud.litSet.has(l.from) && hud.litSet.has(l.to));
@@ -300,10 +304,7 @@
         {#if hud.terrain && terrainY}
           <svg class="terrain" viewBox="0 0 {PLANE_W} {PLANE_H}" width={PLANE_W} height={PLANE_H}>
             {#each scene.bands as b (b.label + ':g')}
-              <rect x={PLANE_W / 2 + leftEdge - 40} y={PLANE_H / 2 + b.y0} width={scene.width / 2 - leftEdge + 80} height={b.y1 - b.y0} fill="url(#tex-{b.ground})" style="color: {b.color}" opacity=".34" />
-            {/each}
-            {#each scene.cols.slice(1) as c (c.label + ':f')}
-              <path d="M{PLANE_W / 2 + c.x0 - 3},{PLANE_H / 2 + terrainY.y0} V{PLANE_H / 2 + terrainY.y1} M{PLANE_W / 2 + c.x0 + 3},{PLANE_H / 2 + terrainY.y0} V{PLANE_H / 2 + terrainY.y1}" class="fence" />
+              <rect x={PLANE_W / 2 + leftEdge - 40} y={PLANE_H / 2 + b.y0} width={scene.width / 2 - leftEdge + 80} height={b.y1 - b.y0} fill="url(#tex-{b.ground})" style="color: {b.color}" opacity=".5" />
             {/each}
           </svg>
         {/if}
@@ -333,14 +334,6 @@
 
         {#key levelKey}
         {#each placed as p (p.id)}
-          {@const tile = tileOf(p)}
-          {#if tile}
-            <svg class="tile" viewBox="0 0 240 110" style="left: {PLANE_W / 2 + p.x}px; top: {PLANE_H / 2 + p.y}px; --s: {p.s}; color: {layerColor(p.node)}">
-              <ellipse cx="120" cy="55" rx="116" ry="50" fill="currentColor" opacity=".14" />
-              <ellipse cx="120" cy="55" rx="116" ry="50" fill="url(#tex-{tile})" opacity=".4" />
-              <ellipse cx="120" cy="55" rx="116" ry="50" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="2" />
-            </svg>
-          {/if}
           <div class="shadow" style="left: {PLANE_W / 2 + p.x}px; top: {PLANE_H / 2 + p.y}px; --s: {p.s}"></div>
           <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_mouse_events_have_key_events -->
           <div
@@ -356,7 +349,7 @@
           >
             {#if p.node}
               <div class="plate" class:pending={stateOf(p.id) === 'pending'}>
-                <span class="kind">{p.node.kind}</span>
+                <span class="kind">{p.node.kind}{#if mode === 'play'}<i class="ly"> · {layerName(p.node)}</i>{/if}</span>
                 <span class="label">{p.node.label}</span>
                 {#if p.role === 'focal' && metaLine(p.node)}<span class="meta">{metaLine(p.node)}</span>{/if}
               </div>
@@ -406,8 +399,7 @@
   .collabel { position: absolute; transform-origin: 50% 100%; font: 600 24px var(--sans); color: var(--fg-2); white-space: nowrap; letter-spacing: .04em; }
   .defs { position: absolute; left: 0; top: 0; }
   .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
-  .fence { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
-  .tile { position: absolute; width: calc(240px * var(--s)); height: calc(110px * var(--s)); transform: translate(-50%, -50%); pointer-events: none; overflow: visible; }
+  .ly { font-style: normal; color: var(--c); opacity: .9; }
   .links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
   .beam { fill: none; stroke: var(--agent); stroke-width: 14; opacity: .07; }
   .dots { fill: none; stroke: var(--fg-3); stroke-width: 2.5; stroke-dasharray: 5 11; opacity: .8; }

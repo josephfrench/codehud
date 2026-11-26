@@ -48,9 +48,11 @@ worked through on 2026-11-25. The first fourteen items are done; what remains is
 16. **Routes and ground.** Map edges are routes: out of the card, along the gutter between rows, across a
     row along a lane gutter, round any card in the way (`packages/hud/src/lib/route.ts`, grid and 3D floor).
     They light up for a reason (agent trace, question, pointer) with direction and labels; the rest stays
-    faint. `b` turns on the ground: one terrain per layer with the same key in every view and a legend;
-    lanes are fenced districts. Cells order their nodes by call order. Focusing a container shows the
-    edges of its children.
+    faint. `b` turns on the ground: one terrain per layer (row), named under the row label, same key on
+    the grid and the 3D floor, legend bottom-left; focus-view plates name their layer. Cells order their
+    nodes by call order. Focusing a container shows the edges of its children. A location bar in both views
+    shows the view, the path, the zoom and a fit button; the follow button becomes "back to agent /
+    question" the moment you move on your own.
     The demo pushes an updated map after the answer (new `stripe_events` table, KV edges, or the
     timestamp column) so the picture follows the decision. `POST /api/reset` (top-bar **reset**, two
     clicks) wipes sessions, questions and history and reloads the map; `pnpm demo` resets on start.

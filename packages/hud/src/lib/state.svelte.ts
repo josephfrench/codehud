@@ -58,9 +58,12 @@ class HudState {
   /** shared hover tooltip (stubs, "why is this here?") */
   tip = $state.raw<Tip | null>(null);
   theme = $state<'dark' | 'light'>((() => { try { return (localStorage.getItem('codehud-theme') as 'dark' | 'light') || 'dark'; } catch { return 'dark'; } })());
-  /** swimlane terrain: a texture and tone per lane under the map and the sprites */
+  /** ground: a texture per layer row under the map (key bottom-left) */
   terrain = $state<boolean>((() => { try { return localStorage.getItem('codehud-terrain') === '1'; } catch { return false; } })());
   toasts = $state<Toast[]>([]);
+  /** current magnification of the stage, for the location bar (1 = 100%) */
+  zoom = $state(1);
+  private roamHinted = false;
   /** bump to ask the canvas to fit these ids (null = whole level) */
   fit = $state.raw<{ ids: string[] | null; lane?: string; seq: number }>({ ids: null, seq: 0 });
   /** which lane column the ←/→ keys are parked on at the top level */
@@ -393,7 +396,16 @@ class HudState {
   }
   select(id: string | null) { this.selected = id; }
   openBlowout(id: string, from: { x: number; y: number } | null) { this.blowoutFrom = from; this.selected = id; }
-  roam() { if (this.mode !== 'roam') this.mode = 'roam'; }
+  /** Any pan, zoom or click of your own stops the view following the agent. Said once, with the way back. */
+  roam() {
+    if (this.mode === 'roam') return;
+    this.mode = 'roam';
+    const back = this.pendingFollowed[0]?.resolvedNodes ?? this.agentAt?.nodes ?? [];
+    if (!this.roamHinted && back.length) {
+      this.roamHinted = true;
+      this.toast({ text: 'You are looking around on your own now; the view stops following the agent. "back to agent" in the top bar (Shift+F) returns you.', nodes: back, kind: 'info' });
+    }
+  }
   follow(session?: string | null) {
     if (session !== undefined) this.followSession = session;
     this.mode = 'follow';

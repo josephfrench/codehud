@@ -39,22 +39,31 @@
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="scrim" role="presentation" onclick={() => (hud.showHelp = false)}>
     <div class="modal" role="presentation" onclick={(e) => e.stopPropagation()}>
+      <h2>Where am I</h2>
+      <table>
+        <tbody>
+          <tr><td>focus</td><td>what the agent is working on: what calls it above, what it uses below. The question drawer sits at the bottom.</td></tr>
+          <tr><td>map</td><td>the whole system, layer rows × lane columns. Double-click or <kbd>↓</kbd> opens a container, <kbd>Esc</kbd> / <kbd>↑</kbd> goes back up. <em>grid</em> and <em>3D</em> are two drawings of the same map.</td></tr>
+          <tr><td>following · back</td><td>while <em>following</em>, the view goes where the agent goes. Any pan, zoom or click of yours stops that; <em>↩ back to agent</em> in the top bar (<kbd>Shift+F</kbd>) returns you to the agent and its question.</td></tr>
+          <tr><td>location bar</td><td>top-left: the view, the path into the system, the zoom, <em>fit</em> to see the whole level.</td></tr>
+        </tbody>
+      </table>
       <h2>Keys</h2>
       <table>
         <tbody>
           <tr><td><kbd>1</kbd>…<kbd>9</kbd></td><td>preview that answer on the stage; press again or <kbd>↵</kbd> to confirm</td></tr>
-          <tr><td>click · 2× · 3×</td><td>centre · specifics card · focus (play) or open (map)</td></tr>
+          <tr><td>click · 2× · 3×</td><td>centre · specifics card · focus it (focus view) or open it (map)</td></tr>
           <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>steer the camera · <kbd>Q</kbd><kbd>E</kbd> orbit · <kbd>R</kbd><kbd>F</kbd> tilt · <kbd>0</kbd> reset</td></tr>
           <tr><td>drag · right-drag · wheel</td><td>pan · orbit · zoom</td></tr>
           <tr><td><kbd>Tab</kbd></td><td>target the next resource; <kbd>↵</kbd> specifics, <kbd>X</kbd> focus</td></tr>
-          <tr><td><kbd>m</kbd> <kbd>d</kbd></td><td>map explorer · docs</td></tr>
+          <tr><td><kbd>m</kbd> <kbd>d</kbd> <kbd>0</kbd></td><td>focus ⇄ map · docs · fit the whole level</td></tr>
           <tr><td><kbd>g</kbd></td><td>map style: grid or 3D</td></tr>
           <tr><td><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></td><td>map: siblings or lanes, up a level, open the selected node</td></tr>
           <tr><td>ghost cards</td><td>inside a container: the outside nodes it talks to, in their own rows; click one to go there</td></tr>
           <tr><td><kbd>h</kbd></td><td>history: decisions, notes and map loads; <code>✓n</code> on a node shows why it is there</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>close the card or drawer, clear the preview, or go up a level</td></tr>
           <tr><td><kbd>c</kbd> <kbd>l</kbd> <kbd>i</kbd> <kbd>t</kbd> <kbd>b</kbd></td><td>collapse dialogue · log · import edges · theme · ground (one key per layer, legend bottom-left)</td></tr>
-          <tr><td><kbd>Shift+F</kbd> <kbd>/</kbd></td><td>follow or free roam · jump to a node (ranked by what the agent touched last)</td></tr>
+          <tr><td><kbd>Shift+F</kbd> <kbd>/</kbd></td><td>back to the agent (or stop following) · jump to a node (ranked by what the agent touched last)</td></tr>
         </tbody>
       </table>
       <p class="muted">Agent presence is a coloured dot (one colour per session); amber is something that needs you. Dashed amber border means a child inside needs you.</p>
@@ -84,8 +93,9 @@
   .tt { font-weight: 600; margin-bottom: 4px; color: var(--fg); }
   .tl { color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: grid; place-items: center; z-index: 50; }
-  .modal { width: min(560px, 92vw); background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 12px; padding: 18px 20px; }
+  .modal { width: min(560px, 92vw); max-height: 90vh; overflow: auto; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 12px; padding: 18px 20px; }
   h2 { margin: 0 0 10px; font-size: 15px; }
+  h2 + table + h2 { margin-top: 16px; }
   table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
   td { padding: 4px 6px; vertical-align: top; }
   td:first-child { white-space: nowrap; color: var(--fg-2); }
